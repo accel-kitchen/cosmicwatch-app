@@ -13,6 +13,9 @@ export class SerialHandler {
   async connect() {
     try {
       console.log("シリアルポートへの接続を開始します...");
+      if (!("serial" in navigator)) {
+        throw new Error("Web Serial APIがサポートされていません");
+      }
       this.port = await navigator.serial.requestPort();
       console.log("シリアルポートを選択しました:", this.port);
 
@@ -40,17 +43,13 @@ export class SerialHandler {
       return;
     }
 
-    this.reader = this.port.readable.getReader();
+    const reader = this.port.readable.getReader();
+    this.reader = reader;
     console.log("シリアル通信の読み取りを開始しました");
 
     try {
       while (true) {
-        if (!this.reader) {
-          console.error("リーダーが初期化されていません");
-          break;
-        }
-
-        const { value, done } = await this.reader.read();
+        const { value, done } = await reader.read();
         if (done) {
           console.log("シリアル通信の読み取りが完了しました");
           break;
@@ -102,10 +101,8 @@ export class SerialHandler {
     } catch (error) {
       console.error("シリアル通信の読み取り中にエラーが発生しました:", error);
     } finally {
-      if (this.reader) {
-        this.reader.releaseLock();
-        this.reader = null;
-      }
+      reader.releaseLock();
+      this.reader = null;
       console.log("シリアル通信の読み取りを終了しました");
     }
   }
