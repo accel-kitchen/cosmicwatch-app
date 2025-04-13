@@ -12,89 +12,57 @@ export class SerialHandler {
 
   async connect() {
     try {
-      console.log("シリアルポートへの接続を開始します...");
       if (!("serial" in navigator)) {
         throw new Error("Web Serial APIがサポートされていません");
       }
       this.port = await navigator.serial.requestPort();
-      console.log("シリアルポートを選択しました:", this.port);
-
       await this.port.open({ baudRate: 9600 });
-      console.log("シリアルポートを開きました");
-
       this.startReading();
     } catch (error) {
-      console.error("シリアルポートへの接続に失敗しました:", error);
+      console.error("シリアル通信の接続に失敗しました:", error);
       throw error;
     }
   }
 
   private async startReading() {
-    if (!this.port) {
-      console.error("シリアルポートが開かれていません");
-      return;
-    }
+    if (!this.port) return;
+    if (!this.port.readable) return;
 
     const decoder = new TextDecoder();
     let buffer = "";
-
-    if (!this.port.readable) {
-      console.error("シリアルポートの読み取りストリームが利用できません");
-      return;
-    }
-
     const reader = this.port.readable.getReader();
     this.reader = reader;
-    console.log("シリアル通信の読み取りを開始しました");
 
     try {
       while (true) {
         const { value, done } = await reader.read();
-        if (done) {
-          console.log("シリアル通信の読み取りが完了しました");
-          break;
-        }
+        if (done) break;
 
-        const decoded = decoder.decode(value, { stream: true });
-        console.log("受信した生データ:", decoded);
-
-        buffer += decoded;
+        buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
 
-        console.log("バッファ内の行数:", lines.length);
-        console.log("残りのバッファ:", buffer);
-
         for (const line of lines) {
-          console.log("処理中の行:", line);
-
           if (line.startsWith("### Signal threshold:")) {
-            console.log("設定情報を検出しました");
             this.config = {
               signalThreshold: parseInt(line.split(":")[1].trim()),
               resetThreshold: parseInt(
                 lines[lines.indexOf(line) + 1].split(":")[1].trim()
               ),
             };
-            console.log("設定を更新しました:", this.config);
           } else if (
             /^\d+\s+\d+\s+\d+\s+\d+\.\d+\s+\d+\s+\d+\.\d+$/.test(line.trim())
           ) {
-            console.log("データ行を検出しました");
             const [eventNumber, timeMs, adc, sipmMv, deadtimeMs, temperatureC] =
               line.trim().split(/\s+/).map(Number);
-            const data: SerialData = {
-              eventNumber,
-              timeMs,
+            this.dataCallback({
+              event: eventNumber,
+              totaltime: timeMs,
               adc,
-              sipmMv,
-              deadtimeMs,
-              temperatureC,
-            };
-            console.log("解析したデータ:", data);
-            this.dataCallback(data);
-          } else {
-            console.log("未処理の行:", line);
+              sipm: sipmMv,
+              deadtime: deadtimeMs,
+              temperature: temperatureC,
+            });
           }
         }
       }
@@ -103,21 +71,17 @@ export class SerialHandler {
     } finally {
       reader.releaseLock();
       this.reader = null;
-      console.log("シリアル通信の読み取りを終了しました");
     }
   }
 
   async disconnect() {
-    console.log("シリアル通信の切断を開始します...");
     if (this.reader) {
       await this.reader.cancel();
       this.reader = null;
-      console.log("リーダーを解放しました");
     }
     if (this.port) {
       await this.port.close();
       this.port = null;
-      console.log("シリアルポートを閉じました");
     }
   }
 }

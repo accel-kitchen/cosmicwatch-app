@@ -1,10 +1,10 @@
 export interface SerialData {
-  eventNumber: number;
-  timeMs: number;
+  event: number;
+  totaltime: number;
   adc: number;
-  sipmMv: number;
-  deadtimeMs: number;
-  temperatureC: number;
+  sipm: number;
+  deadtime: number;
+  temperature: number;
 }
 
 export interface SerialConfig {
