@@ -2,7 +2,7 @@ import { SerialData, SerialConfig } from "../types/serial";
 
 export class SerialHandler {
   private port: SerialPort | null = null;
-  private reader: ReadableStreamDefaultReader | null = null;
+  private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
   private config: SerialConfig | null = null;
   private dataCallback: (data: SerialData) => void;
 
@@ -35,11 +35,21 @@ export class SerialHandler {
     const decoder = new TextDecoder();
     let buffer = "";
 
+    if (!this.port.readable) {
+      console.error("シリアルポートの読み取りストリームが利用できません");
+      return;
+    }
+
     this.reader = this.port.readable.getReader();
     console.log("シリアル通信の読み取りを開始しました");
 
     try {
       while (true) {
+        if (!this.reader) {
+          console.error("リーダーが初期化されていません");
+          break;
+        }
+
         const { value, done } = await this.reader.read();
         if (done) {
           console.log("シリアル通信の読み取りが完了しました");
@@ -92,7 +102,10 @@ export class SerialHandler {
     } catch (error) {
       console.error("シリアル通信の読み取り中にエラーが発生しました:", error);
     } finally {
-      this.reader.releaseLock();
+      if (this.reader) {
+        this.reader.releaseLock();
+        this.reader = null;
+      }
       console.log("シリアル通信の読み取りを終了しました");
     }
   }
