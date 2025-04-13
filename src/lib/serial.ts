@@ -78,11 +78,11 @@ export class SerialHandler {
             };
             console.log("設定を更新しました:", this.config);
           } else if (
-            /^\d+\s+\d+\s+\d+\s+\d+\.\d+\s+\d+\s+\d+\.\d+$/.test(line)
+            /^\d+\s+\d+\s+\d+\s+\d+\.\d+\s+\d+\s+\d+\.\d+$/.test(line.trim())
           ) {
             console.log("データ行を検出しました");
             const [eventNumber, timeMs, adc, sipmMv, deadtimeMs, temperatureC] =
-              line.split(/\s+/).map(Number);
+              line.trim().split(/\s+/).map(Number);
             const data: SerialData = {
               eventNumber,
               timeMs,

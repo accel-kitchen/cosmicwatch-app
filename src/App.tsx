@@ -6,10 +6,10 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [data, setData] = useState<SerialData[]>([]);
   const [config, setConfig] = useState<RecordingConfig>({});
+  const [currentData, setCurrentData] = useState<SerialData | null>(null);
   const serialHandlerRef = useRef<SerialHandler | null>(null);
   const lastSaveTimeRef = useRef<number>(0);
   const eventCountRef = useRef<number>(0);
-  const [currentData, setCurrentData] = useState<SerialData | null>(null);
 
   useEffect(() => {
     console.log("アプリケーションが初期化されました");
@@ -21,7 +21,7 @@ function App() {
 
   const handleData = (newData: SerialData) => {
     console.log("新しいデータを受信しました:", newData);
-    setCurrentData(newData); // 現在のデータを更新
+    setCurrentData(newData);
     setData((prev) => {
       const updatedData = [...prev, newData];
       console.log(
