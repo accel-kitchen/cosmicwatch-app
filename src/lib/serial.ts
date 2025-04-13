@@ -13,20 +13,19 @@ export class SerialHandler {
   async connect() {
     try {
       if (!("serial" in navigator)) {
-        throw new Error("Web Serial APIがサポートされていません");
+        throw new Error("Web Serial API is not supported");
       }
       this.port = await navigator.serial.requestPort();
       await this.port.open({ baudRate: 9600 });
       this.startReading();
     } catch (error) {
-      console.error("シリアル通信の接続に失敗しました:", error);
+      console.error("Failed to connect to serial port:", error);
       throw error;
     }
   }
 
   private async startReading() {
-    if (!this.port) return;
-    if (!this.port.readable) return;
+    if (!this.port || !this.port.readable) return;
 
     const decoder = new TextDecoder();
     let buffer = "";
@@ -67,7 +66,7 @@ export class SerialHandler {
         }
       }
     } catch (error) {
-      console.error("シリアル通信の読み取り中にエラーが発生しました:", error);
+      console.error("Error reading from serial port:", error);
     } finally {
       reader.releaseLock();
       this.reader = null;
