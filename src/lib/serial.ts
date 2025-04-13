@@ -1,9 +1,8 @@
-import { SerialData, SerialConfig } from "../types/serial";
+import { SerialData } from "../types/serial";
 
 export class SerialHandler {
   private port: SerialPort | null = null;
   private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-  private config: SerialConfig | null = null;
   private dataCallback: (data: SerialData) => void;
 
   constructor(dataCallback: (data: SerialData) => void) {
@@ -42,14 +41,7 @@ export class SerialHandler {
         buffer = lines.pop() || "";
 
         for (const line of lines) {
-          if (line.startsWith("### Signal threshold:")) {
-            this.config = {
-              signalThreshold: parseInt(line.split(":")[1].trim()),
-              resetThreshold: parseInt(
-                lines[lines.indexOf(line) + 1].split(":")[1].trim()
-              ),
-            };
-          } else if (
+          if (
             /^\d+\s+\d+\s+\d+\s+\d+\.\d+\s+\d+\s+\d+\.\d+$/.test(line.trim())
           ) {
             const [eventNumber, timeMs, adc, sipmMv, deadtimeMs, temperatureC] =
