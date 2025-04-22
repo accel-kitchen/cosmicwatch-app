@@ -1,15 +1,19 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useSerialPort } from "../hooks/useSerialPort";
 import { SerialPortConfig } from "../../shared/types";
 
 interface SerialConnectionProps {
   onDataReceived: (data: string) => void;
   onClearData: () => void;
+  onConnectSuccess: () => void;
+  onDisconnect: () => void;
 }
 
 export const SerialConnection = ({
   onDataReceived,
   onClearData,
+  onConnectSuccess,
+  onDisconnect,
 }: SerialConnectionProps) => {
   const [config, setConfig] = useState<SerialPortConfig>({
     isMaster: true,
@@ -21,8 +25,18 @@ export const SerialConnection = ({
 
   const handleConnect = useCallback(async () => {
     onClearData();
-    await connectWithDelay(config.isMaster);
-  }, [connectWithDelay, config.isMaster, onClearData]);
+    try {
+      await connectWithDelay(config.isMaster);
+      onConnectSuccess();
+    } catch (error) {
+      console.error("Connection failed in component:", error);
+    }
+  }, [connectWithDelay, config.isMaster, onClearData, onConnectSuccess]);
+
+  const handleDisconnectInternal = useCallback(async () => {
+    await disconnect();
+    onDisconnect();
+  }, [disconnect, onDisconnect]);
 
   return (
     <div className="p-4 bg-white rounded-lg shadow">
@@ -42,7 +56,7 @@ export const SerialConnection = ({
 
       <div className="flex gap-2">
         <button
-          onClick={isConnected ? disconnect : handleConnect}
+          onClick={isConnected ? handleDisconnectInternal : handleConnect}
           className={`px-4 py-2 rounded ${
             isConnected
               ? "bg-red-500 hover:bg-red-600"

@@ -1,115 +1,162 @@
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, useState, useEffect, useCallback } from "react";
 import { path } from "@tauri-apps/api";
 import { open } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
-// import { downloadDir } from "@tauri-apps/plugin-path";
+import { downloadDir } from "@tauri-apps/api/path";
+import {
+  formatDateForFilename,
+  formatDateTimeLocale,
+} from "../utils/formatters";
 // import { writeFile } from "@tauri-apps/api/fs";
 
+// デバッグ用ログ関数
+const logDebug = (...args: any[]) =>
+  console.log("[FileControlsDesktop]", ...args);
+
 interface FileControlsDesktopProps {
-  rawData: string[];
+  measurementStartTime: Date | null;
+  setFileHandle: (path: string | null) => void;
+  latestRawData: string | null;
 }
 
-export const FileControlsDesktop = ({ rawData }: FileControlsDesktopProps) => {
+export const FileControlsDesktop = ({
+  measurementStartTime,
+  setFileHandle,
+  latestRawData,
+}: FileControlsDesktopProps) => {
   const [additionalComment, setAdditionalComment] = useState<string>("");
   const [filenameSuffix, setFilenameSuffix] = useState<string>("");
-  const [customSavePath, setCustomSavePath] = useState<string>("");
-  const [startTime] = useState<Date>(new Date());
+  const [saveDirectory, setSaveDirectory] = useState<string>("");
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(true);
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  const [isFileCreated, setIsFileCreated] = useState<boolean>(false);
 
-  const formatDateForFilename = (date: Date) => {
-    return date
-      .toLocaleString("ja-JP", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZone: "Asia/Tokyo",
-      })
-      .replace(/[\s/:]|年|月|日/g, "-")
-      .replace(/時|分|秒/g, "");
-  };
-
-  // 通常のダウンロード（ダウンロードフォルダへ）
-  const handleDownload = async () => {
-    try {
-      const comments = [
-        "# CosmicWatch Data",
-        `# Measurement Start: ${startTime.toLocaleString("ja-JP", {
-          timeZone: "Asia/Tokyo",
-        })}`,
-        ...additionalComment
-          .split("\n")
-          .filter((line) => line.trim())
-          .map((line) => `# ${line}`),
-      ].join("\n");
-
-      const content = [comments, ...rawData].join("\n");
-      const timestamp = formatDateForFilename(startTime);
-      const suffix = filenameSuffix ? `_${filenameSuffix}` : "";
-      const filename = `${timestamp}${suffix}.dat`;
-
-      // ダウンロードディレクトリを取得
-      const downloadPath = await path.downloadDir();
-      if (!downloadPath) {
-        console.error("Could not determine download directory.");
-        return; // ダウンロードディレクトリが取得できなければ処理中断
+  useEffect(() => {
+    const setDefaultPath = async () => {
+      try {
+        logDebug(
+          "Attempting to get download directory for auto-save default..."
+        );
+        const dir = await downloadDir();
+        logDebug("Default save directory set to:", dir);
+        setSaveDirectory(dir);
+      } catch (error) {
+        console.error("Failed to get download directory:", error);
       }
-      // 完全なパスを作成
-      const fullPath = await path.join(downloadPath, filename);
+    };
+    setDefaultPath();
+  }, []);
 
-      // ファイルに書き込み
-      await writeTextFile(fullPath, content);
-      console.log("File saved to downloads:", fullPath);
-    } catch (error) {
-      console.error("Failed to save to downloads:", error);
+  useEffect(() => {
+    if (
+      measurementStartTime &&
+      autoSaveEnabled &&
+      saveDirectory &&
+      !isFileCreated
+    ) {
+      logDebug("Conditions met: Starting file creation logic...");
+
+      const createAndWrite = async () => {
+        try {
+          const currentAdditionalComment = additionalComment;
+          const currentFilenameSuffix = filenameSuffix;
+
+          const comments =
+            [
+              "# CosmicWatch Data",
+              `# Measurement Start: ${formatDateTimeLocale(
+                measurementStartTime
+              )}`,
+              ...currentAdditionalComment
+                .split("\n")
+                .filter((line) => line.trim())
+                .map((line) => `# ${line}`),
+            ].join("\n") + "\n";
+
+          const startTimestamp = formatDateForFilename(measurementStartTime);
+          const autoSaveSuffix = currentFilenameSuffix
+            ? `_${currentFilenameSuffix}`
+            : "";
+          const filename = `${startTimestamp}${autoSaveSuffix}_autosave.dat`;
+          const fullPath = await path.join(saveDirectory, filename);
+
+          logDebug("Attempting to write/overwrite file:", fullPath);
+          await writeTextFile(fullPath, comments, { append: false });
+          logDebug("File created/overwritten successfully:", fullPath);
+
+          setCurrentFilePath(fullPath);
+          setFileHandle(fullPath);
+          setIsFileCreated(true);
+        } catch (error) {
+          console.error("Failed to create/overwrite auto-save file:", error);
+          setCurrentFilePath(null);
+          setFileHandle(null);
+          setIsFileCreated(false);
+        }
+      };
+      createAndWrite();
+    } else if (!measurementStartTime && isFileCreated) {
+      logDebug(
+        "Measurement stopped/cleared, resetting file path and created flag."
+      );
+      setCurrentFilePath(null);
+      setFileHandle(null);
+      setIsFileCreated(false);
     }
-  };
+  }, [
+    measurementStartTime,
+    autoSaveEnabled,
+    saveDirectory,
+    isFileCreated,
+    setFileHandle,
+    additionalComment,
+    filenameSuffix,
+  ]);
 
-  // フォルダ選択ダイアログを開く
+  useEffect(() => {
+    const appendData = async () => {
+      if (
+        autoSaveEnabled &&
+        currentFilePath &&
+        latestRawData &&
+        isFileCreated
+      ) {
+        logDebug("Attempting to append data to:", currentFilePath);
+        try {
+          await writeTextFile(currentFilePath, latestRawData + "\n", {
+            append: true,
+          });
+          logDebug("Successfully appended data.");
+        } catch (error) {
+          console.error("Failed to append data:", error);
+          logDebug("Error during append, clearing file path and created flag.");
+          setCurrentFilePath(null);
+          setFileHandle(null);
+          setIsFileCreated(false);
+        }
+      }
+    };
+    appendData();
+  }, [
+    latestRawData,
+    autoSaveEnabled,
+    currentFilePath,
+    setFileHandle,
+    isFileCreated,
+  ]);
+
   const handleSelectCustomPath = async () => {
     try {
-      const selected = await open({
-        directory: true,
-        multiple: false,
-      });
-
+      const selected = await open({ directory: true, multiple: false });
       if (selected && typeof selected === "string") {
-        setCustomSavePath(selected);
-        console.log("Selected directory:", selected);
+        logDebug("Custom auto-save directory selected:", selected);
+        setSaveDirectory(selected);
+        setCurrentFilePath(null);
+        setFileHandle(null);
+        setIsFileCreated(false);
       }
     } catch (error) {
       console.error("Failed to select directory:", error);
-    }
-  };
-
-  // ファイル保存処理
-  const handleSaveToCustomPath = async () => {
-    if (!customSavePath) return;
-
-    try {
-      const comments = [
-        "# CosmicWatch Data",
-        `# Measurement Start: ${startTime.toLocaleString("ja-JP", {
-          timeZone: "Asia/Tokyo",
-        })}`,
-        ...additionalComment
-          .split("\n")
-          .filter((line) => line.trim())
-          .map((line) => `# ${line}`),
-      ].join("\n");
-
-      const content = [comments, ...rawData].join("\n");
-      const timestamp = formatDateForFilename(startTime);
-      const suffix = filenameSuffix ? `_${filenameSuffix}` : "";
-      const filename = `${timestamp}${suffix}.dat`;
-
-      // パスを結合してファイルを保存
-      const fullPath = await path.join(customSavePath, filename);
-      await writeTextFile(fullPath, content);
-      console.log("File saved:", fullPath);
-    } catch (error) {
-      console.error("Failed to save file:", error);
     }
   };
 
@@ -145,43 +192,53 @@ export const FileControlsDesktop = ({ rawData }: FileControlsDesktopProps) => {
         />
       </div>
 
-      <div className="flex flex-col gap-4">
-        {/* ダウンロードフォルダへの保存 */}
-        <div>
+      <div className="border-t pt-4 mt-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          自動保存先フォルダ
+        </label>
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+            value={saveDirectory}
+            readOnly
+            placeholder="保存先フォルダ..."
+          />
           <button
-            onClick={handleDownload}
-            disabled={rawData.length === 0}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+            onClick={handleSelectCustomPath}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
           >
-            ダウンロードフォルダに保存
+            フォルダ変更
           </button>
         </div>
-
-        {/* カスタム保存先への保存 */}
-        <div className="border-t pt-4">
-          <div className="flex gap-2 mb-2">
-            <input
-              type="text"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-              value={customSavePath}
-              readOnly
-              placeholder="保存先フォルダを選択..."
-            />
-            <button
-              onClick={handleSelectCustomPath}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-            >
-              フォルダ選択
-            </button>
-          </div>
-          <button
-            onClick={handleSaveToCustomPath}
-            disabled={!customSavePath || rawData.length === 0}
-            className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
-          >
-            選択したフォルダに保存
-          </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="autoSave"
+            checked={autoSaveEnabled}
+            onChange={(e) => {
+              const isChecked = e.target.checked;
+              setAutoSaveEnabled(isChecked);
+              if (!isChecked) {
+                logDebug(
+                  "Auto save disabled by user, clearing file path and created flag."
+                );
+                setCurrentFilePath(null);
+                setFileHandle(null);
+                setIsFileCreated(false);
+              }
+            }}
+            className="rounded border-gray-300"
+          />
+          <label htmlFor="autoSave" className="text-sm text-gray-700">
+            接続時に自動でファイルを作成し追記する
+          </label>
         </div>
+        {currentFilePath && autoSaveEnabled && (
+          <p className="text-xs text-gray-500 mt-1">
+            自動保存中: {currentFilePath}
+          </p>
+        )}
       </div>
     </div>
   );

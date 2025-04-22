@@ -1,51 +1,45 @@
 import { ChangeEvent, useState } from "react";
+import {
+  formatDateForFilename,
+  formatDateTimeLocale,
+} from "../utils/formatters";
 
 interface FileControlsProps {
   rawData: string[];
+  measurementStartTime: Date | null;
+  measurementEndTime: Date | null;
 }
 
-export const FileControls = ({ rawData }: FileControlsProps) => {
+export const FileControls = ({
+  rawData,
+  measurementStartTime,
+  measurementEndTime,
+}: FileControlsProps) => {
   const [additionalComment, setAdditionalComment] = useState<string>("");
   const [filenameSuffix, setFilenameSuffix] = useState<string>("");
-  const [startTime] = useState<Date>(new Date()); // コンポーネントマウント時の時刻を保持
-
-  const formatDateForFilename = (date: Date) => {
-    return date
-      .toLocaleString("ja-JP", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZone: "Asia/Tokyo",
-      })
-      .replace(/[\s/:]|年|月|日/g, "-")
-      .replace(/時|分|秒/g, "");
-  };
 
   const handleDownload = () => {
-    // コメント行の作成
+    if (!measurementStartTime) return;
+
+    const endTime = measurementEndTime ?? new Date();
+
     const comments = [
       "# CosmicWatch Data",
-      `# Measurement Start: ${startTime.toLocaleString("ja-JP", {
-        timeZone: "Asia/Tokyo",
-      })}`,
+      `# Measurement Start: ${formatDateTimeLocale(measurementStartTime)}`,
+      `# Measurement End: ${formatDateTimeLocale(endTime)}`,
       ...additionalComment
         .split("\n")
         .filter((line) => line.trim())
         .map((line) => `# ${line}`),
     ].join("\n");
 
-    // ファイルの内容を作成
     const content = [comments, ...rawData].join("\n");
 
-    // ファイル名の生成
-    const timestamp = formatDateForFilename(startTime);
+    const startTimestamp = formatDateForFilename(measurementStartTime);
+    const endTimestamp = formatDateForFilename(endTime);
     const suffix = filenameSuffix ? `_${filenameSuffix}` : "";
-    const filename = `${timestamp}${suffix}.dat`;
+    const filename = `${startTimestamp}-${endTimestamp}${suffix}.dat`;
 
-    // ダウンロード処理
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -92,7 +86,7 @@ export const FileControls = ({ rawData }: FileControlsProps) => {
       <div className="flex gap-2">
         <button
           onClick={handleDownload}
-          disabled={rawData.length === 0}
+          disabled={rawData.length === 0 || !measurementStartTime}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           データをダウンロード
