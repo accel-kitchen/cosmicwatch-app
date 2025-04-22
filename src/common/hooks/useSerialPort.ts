@@ -45,7 +45,9 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
 
       // シリアルポートの設定を待機
       await new Promise((resolve) => setTimeout(resolve, 100));
-
+      if (!port.readable || !port.writable) {
+        throw new Error("Port readable or writable stream is null.");
+      }
       const textDecoder = new TextDecoder();
       const reader = port.readable.getReader();
       const writer = port.writable.getWriter();
