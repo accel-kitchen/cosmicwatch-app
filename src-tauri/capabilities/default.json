@@ -1,11 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
-  "windows": [
-    "main"
-  ],
+  "description": "Default capabilities",
+  "windows": ["main"],
   "permissions": [
-    "core:default"
+    "dialog:allow-open",
+    "fs:allow-write-text-file",
+    {
+      "identifier": "fs:scope",
+      "allow": ["$DOWNLOAD/**", "**"]
+    },
+    "core:path:default",
+    "core:app:default"
   ]
 }

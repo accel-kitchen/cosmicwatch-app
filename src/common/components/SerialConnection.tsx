@@ -4,9 +4,13 @@ import { SerialPortConfig } from "../../shared/types";
 
 interface SerialConnectionProps {
   onDataReceived: (data: string) => void;
+  onClearData: () => void;
 }
 
-export const SerialConnection = ({ onDataReceived }: SerialConnectionProps) => {
+export const SerialConnection = ({
+  onDataReceived,
+  onClearData,
+}: SerialConnectionProps) => {
   const [config, setConfig] = useState<SerialPortConfig>({
     isMaster: true,
     portNumber: "",
@@ -16,8 +20,9 @@ export const SerialConnection = ({ onDataReceived }: SerialConnectionProps) => {
     useSerialPort(onDataReceived);
 
   const handleConnect = useCallback(async () => {
+    onClearData();
     await connectWithDelay(config.isMaster);
-  }, [connectWithDelay, config.isMaster]);
+  }, [connectWithDelay, config.isMaster, onClearData]);
 
   return (
     <div className="p-4 bg-white rounded-lg shadow">

@@ -7,29 +7,36 @@ import { SerialConnection } from "./common/components/SerialConnection";
 import { DataTable } from "./common/components/DataTable";
 import { parseCosmicWatchData } from "./common/utils/dataParser";
 import { CosmicWatchData } from "./shared/types";
+import { FileControls } from "./common/components/FileControls";
+import { FileControlsDesktop } from "./common/components/FileControlsDesktop";
+import { checkIsDesktop } from "./common/utils/platform";
 
 function App() {
   const [rawData, setRawData] = useState<string[]>([]);
   const [parsedData, setParsedData] = useState<CosmicWatchData[]>([]);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  // Tauriアプリケーションの判定
+  useEffect(() => {
+    checkIsDesktop().then(setIsDesktop);
+  }, []);
 
   const handleDataReceived = useCallback((newData: string) => {
     console.log("Received raw data:", newData);
-
-    setRawData((prev) => {
-      const updated = [...prev, newData];
-      return updated.slice(-1000);
-    });
+    setRawData((prev) => [...prev, newData]);
 
     const parsed = parseCosmicWatchData(newData);
-    console.log("Parsed data:", parsed); // パース結果をログ出力
-
     if (parsed) {
       setParsedData((prev) => {
         const updated = [...prev, parsed];
-        console.log("Updated parsed data array:", updated); // 更新後のデータ配列をログ出力
         return updated.slice(-100);
       });
     }
+  }, []);
+
+  const handleClearData = useCallback(() => {
+    setRawData([]);
+    setParsedData([]);
   }, []);
 
   // デバッグ用：parsedDataの変更を監視
@@ -39,9 +46,23 @@ function App() {
 
   return (
     <Layout>
-      <SerialConnection onDataReceived={handleDataReceived} />
+      <div className="bg-yellow-100 p-2 mb-4 rounded">
+        実行環境: {isDesktop ? "デスクトップアプリ" : "Webブラウザ"}
+        {isDesktop && <span className="ml-2">（Tauriアプリ）</span>}
+      </div>
+
+      <SerialConnection
+        onDataReceived={handleDataReceived}
+        onClearData={handleClearData}
+      />
 
       <div className="mt-4 space-y-4">
+        {isDesktop ? (
+          <FileControlsDesktop rawData={rawData} />
+        ) : (
+          <FileControls rawData={rawData} />
+        )}
+
         <div>
           <h2 className="text-xl font-bold mb-2">測定データ</h2>
           <div className="bg-white rounded-lg shadow">
