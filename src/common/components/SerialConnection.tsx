@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useSerialPort } from "../hooks/useSerialPort";
 import { SerialPortConfig } from "../../shared/types";
 

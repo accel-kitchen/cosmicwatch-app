@@ -1,4 +1,4 @@
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent } from "react";
 import {
   formatDateForFilename,
   formatDateTimeLocale,
@@ -8,16 +8,21 @@ interface FileControlsProps {
   rawData: string[];
   measurementStartTime: Date | null;
   measurementEndTime: Date | null;
+  additionalComment: string;
+  setAdditionalComment: (comment: string) => void;
+  filenameSuffix: string;
+  setFilenameSuffix: (suffix: string) => void;
 }
 
 export const FileControls = ({
   rawData,
   measurementStartTime,
   measurementEndTime,
+  additionalComment,
+  setAdditionalComment,
+  filenameSuffix,
+  setFilenameSuffix,
 }: FileControlsProps) => {
-  const [additionalComment, setAdditionalComment] = useState<string>("");
-  const [filenameSuffix, setFilenameSuffix] = useState<string>("");
-
   const handleDownload = () => {
     if (!measurementStartTime) return;
 

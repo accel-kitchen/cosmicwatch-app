@@ -25,6 +25,10 @@ function App() {
     null
   );
 
+  // ★ コメントとサフィックスのStateをAppに追加
+  const [additionalComment, setAdditionalComment] = useState<string>("");
+  const [filenameSuffix, setFilenameSuffix] = useState<string>("");
+
   // Tauriアプリケーションの判定
   useEffect(() => {
     checkIsDesktop().then(setIsDesktop);
@@ -107,6 +111,10 @@ function App() {
           rawData={rawData}
           measurementStartTime={measurementStartTime}
           measurementEndTime={measurementEndTime}
+          additionalComment={additionalComment}
+          setAdditionalComment={setAdditionalComment}
+          filenameSuffix={filenameSuffix}
+          setFilenameSuffix={setFilenameSuffix}
         />
 
         {isDesktop && (
@@ -116,6 +124,8 @@ function App() {
             latestRawData={
               rawData.length > 0 ? rawData[rawData.length - 1] : null
             }
+            additionalComment={additionalComment}
+            filenameSuffix={filenameSuffix}
           />
         )}
 
