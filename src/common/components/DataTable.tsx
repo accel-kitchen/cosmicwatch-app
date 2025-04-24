@@ -4,6 +4,7 @@ import {
   getCoreRowModel,
   useReactTable,
   ColumnDef,
+  getSortedRowModel,
 } from "@tanstack/react-table";
 import { CosmicWatchData } from "../../shared/types";
 
@@ -36,7 +37,7 @@ const generateColumns = (
     { accessorKey: "adc", header: "ADC" },
     {
       accessorKey: "sipm",
-      header: "SiPM",
+      header: "SiPM (mV)",
       cell: (info) => {
         const value = info.getValue();
         return typeof value === "number" ? value.toFixed(2) : "-";
@@ -50,7 +51,7 @@ const generateColumns = (
   if (sampleData?.hum !== undefined) {
     baseColumns.push({
       accessorKey: "hum",
-      header: "Humidity (%)",
+      header: "Humidity",
       cell: (info) => {
         const value = info.getValue();
         return typeof value === "number" ? value.toFixed(1) : "-";
@@ -60,7 +61,7 @@ const generateColumns = (
   if (sampleData?.press !== undefined) {
     baseColumns.push({
       accessorKey: "press",
-      header: "Pressure (hPa)",
+      header: "Pressure",
       cell: (info) => {
         const value = info.getValue();
         return typeof value === "number" ? value.toFixed(1) : "-";
@@ -72,13 +73,33 @@ const generateColumns = (
 };
 
 export const DataTable = ({ data }: DataTableProps) => {
+  // データを最新100件に制限
+  const latestData = useMemo(() => {
+    // イベント番号の降順（新しいものが上）にソート
+    return [...data]
+      .sort((a, b) => b.event - a.event) // 降順ソート
+      .slice(0, 100); // 最新100件を取得
+  }, [data]);
+
   // データに基づいて動的に列定義を生成
-  const columns = useMemo(() => generateColumns(data[0]), [data[0]]);
+  const columns = useMemo(
+    () => generateColumns(latestData[0]),
+    [latestData[0]]
+  );
 
   const table = useReactTable({
-    data,
+    data: latestData,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(), // ソート機能を追加
+    initialState: {
+      sorting: [
+        {
+          id: "event",
+          desc: true, // 降順ソート（新しいものが上）
+        },
+      ],
+    },
   });
 
   return (
@@ -90,7 +111,7 @@ export const DataTable = ({ data }: DataTableProps) => {
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 tracking-wider whitespace-nowrap"
                 >
                   {header.isPlaceholder
                     ? null

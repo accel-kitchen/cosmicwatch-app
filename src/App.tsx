@@ -132,7 +132,7 @@ function App() {
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-semibold mb-3 text-gray-800">
-            測定データ
+            測定データ (最新100件)
           </h2>
           <div className="bg-white rounded-lg shadow overflow-hidden max-h-80 overflow-y-auto">
             {parsedData.length > 0 ? (

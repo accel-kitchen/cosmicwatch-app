@@ -35,7 +35,7 @@ export const SerialConnection = ({
   return (
     <div className="p-5 bg-white rounded-lg shadow-md">
       <h2 className="text-xl font-semibold text-gray-700 mb-4">
-        CosmicWatchとの接続
+        CosmicWatchと接続
       </h2>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center text-sm">
