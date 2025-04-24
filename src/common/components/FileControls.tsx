@@ -37,6 +37,7 @@ export const FileControls = ({
   const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(true);
   const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
   const [isFileCreated, setIsFileCreated] = useState<boolean>(false);
+  const [includeComments, setIncludeComments] = useState(false);
 
   useEffect(() => {
     if (isDesktop) {
@@ -166,16 +167,28 @@ export const FileControls = ({
   const handleDownload = () => {
     if (!measurementStartTime) return;
     const endTime = measurementEndTime ?? new Date();
-    const comments = [
-      "# CosmicWatch Data",
-      `# Measurement Start: ${formatDateTimeLocale(measurementStartTime)}`,
-      `# Measurement End: ${formatDateTimeLocale(endTime)}`,
-      ...additionalComment
-        .split("\n")
-        .filter((line) => line.trim())
-        .map((line) => `# ${line}`),
-    ].join("\n");
-    const content = [comments, ...rawData].join("\n");
+
+    let content = "";
+
+    if (includeComments) {
+      const comments = [
+        "# CosmicWatch Data",
+        `# Measurement Start: ${formatDateTimeLocale(measurementStartTime)}`,
+        `# Measurement End: ${formatDateTimeLocale(endTime)}`,
+        ...additionalComment
+          .split("\n")
+          .filter((line) => line.trim())
+          .map((line) => `# ${line}`),
+      ].join("\n");
+      content = comments + "\n";
+    }
+
+    const filteredData = rawData.filter(
+      (line) => includeComments || !line.trim().startsWith("#")
+    );
+
+    content += filteredData.join("\n");
+
     const startTimestamp = formatDateForFilename(measurementStartTime);
     const endTimestamp = formatDateForFilename(endTime);
     const suffix = filenameSuffix ? `_${filenameSuffix}` : "";
@@ -196,22 +209,44 @@ export const FileControls = ({
       <h2 className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
         ファイル設定・保存
       </h2>
+      <div className="flex items-center">
+        <input
+          type="checkbox"
+          id="includeComments"
+          checked={includeComments}
+          onChange={(e) => setIncludeComments(e.target.checked)}
+          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2 cursor-pointer"
+        />
+        <label
+          htmlFor="includeComments"
+          className="text-sm font-medium text-gray-700 select-none cursor-pointer"
+        >
+          コメントを含める
+        </label>
+      </div>
       <div>
         <label
           htmlFor="additionalComment"
-          className="block text-sm font-medium text-gray-700 mb-1"
+          className={`block text-sm font-medium ${
+            includeComments ? "text-gray-700" : "text-gray-400"
+          } mb-1`}
         >
           追加コメント
         </label>
         <textarea
           id="additionalComment"
-          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
+          className={`block w-full px-3 py-2 border ${
+            includeComments
+              ? "border-gray-300 bg-white"
+              : "border-gray-200 bg-gray-100"
+          } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out`}
           rows={3}
           value={additionalComment}
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
             setAdditionalComment(e.target.value)
           }
           placeholder="測定条件などのコメント（ファイル先頭に#付きで挿入されます）"
+          disabled={!includeComments}
         />
       </div>
 
