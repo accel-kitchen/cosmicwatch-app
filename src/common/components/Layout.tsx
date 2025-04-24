@@ -1,22 +1,29 @@
 import React from "react";
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-// 共通のセクションタイトルコンポーネント
+// 共通のセクションタイトルを別ファイルに移動する準備として、まずは内部で改善
 export const SectionTitle = ({ children }: { children: React.ReactNode }) => (
   <h2 className="text-xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">
     {children}
   </h2>
 );
 
+// セクションヘッダーコンポーネント（サブ見出し用）
+export const SectionHeader = ({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) => (
+  <h3 className={`font-medium text-gray-700 mb-3 ${className}`}>{children}</h3>
+);
+
 // 全体の背景色、最小高、パディングを設定
-export const Layout = ({ children }: LayoutProps) => {
+export const Layout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
-        <header className="mb-6">
+        <header className="mb-8">
           <h1 className="text-3xl font-bold">CosmicWatch Recorder</h1>
         </header>
         <main>{children}</main>

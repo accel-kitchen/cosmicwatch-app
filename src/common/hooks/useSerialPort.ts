@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { SerialPortState, PortInfo } from "../../shared/types";
 
-const DEFAULT_OPTIONS = {
+// シリアルポートの設定
+const DEFAULT_SERIAL_OPTIONS = {
   baudRate: 9600,
   dataBits: 8 as const,
   stopBits: 1 as const,
@@ -9,141 +10,146 @@ const DEFAULT_OPTIONS = {
   bufferSize: 255,
 };
 
-const DEBUG = true; // デバッグモードフラグ
+// デバッグモード設定
+const DEBUG = true;
 
+/**
+ * デバッグログ出力関数
+ */
 const log = (...args: any[]) => {
   if (DEBUG) {
     console.log("[SerialPort]", ...args);
   }
 };
 
-// SerialPortStateにportInfoを追加
-interface ExtendedSerialPortState extends SerialPortState {
+/**
+ * 拡張されたシリアルポート状態の型
+ */
+interface SerialPortStatus extends SerialPortState {
   portInfo: PortInfo | null;
+  connecting: boolean;
+  disconnecting: boolean;
 }
 
+/**
+ * シリアルポート通信を管理するフック
+ */
 export const useSerialPort = (onDataReceived: (data: string) => void) => {
-  // Stateの型を拡張したものに変更
-  const [state, setState] = useState<ExtendedSerialPortState>({
+  // 状態管理
+  const [status, setStatus] = useState<SerialPortStatus>({
     port: null,
     reader: null,
     writer: null,
     isConnected: false,
     error: null,
-    portInfo: null, // 初期値 null
+    portInfo: null,
+    connecting: false,
+    disconnecting: false,
   });
 
-  // クリーンアップフラグを追加
+  // クリーンアップフラグ参照
   const cleanupRef = useRef(false);
 
+  /**
+   * シリアルポートを開いて接続する
+   */
   const connect = useCallback(async () => {
+    // 既に接続中または接続処理中なら何もしない
+    if (status.isConnected || status.connecting) {
+      return;
+    }
+
+    setStatus((prev) => ({ ...prev, connecting: true, error: null }));
+    cleanupRef.current = false;
+
     try {
-      log("Connecting to serial port...");
+      log("WebSerial APIの確認中...");
       if (!navigator.serial) {
-        throw new Error("WebSerial API is not supported in this browser");
+        throw new Error("このブラウザはWebSerial APIに対応していません");
       }
 
+      log("ポート選択ダイアログを表示...");
       const port = await navigator.serial.requestPort();
-      log("Port selected:", port);
-      // ★ ポート情報を取得
       const portInfo = port.getInfo();
-      log("Port info:", portInfo);
+      log("選択されたポート情報:", portInfo);
 
-      log("Opening port with options:", DEFAULT_OPTIONS);
-      await port.open(DEFAULT_OPTIONS);
-      log("Port opened successfully");
+      log("ポートを開いています...", DEFAULT_SERIAL_OPTIONS);
+      await port.open(DEFAULT_SERIAL_OPTIONS);
+      log("ポートが正常に開かれました");
 
-      // シリアルポートの設定を待機
+      // シリアルポートの初期化待機
       await new Promise((resolve) => setTimeout(resolve, 100));
+
       if (!port.readable || !port.writable) {
-        throw new Error("Port readable or writable stream is null.");
+        throw new Error("ポートの読み取り/書き込みストリームが利用できません");
       }
+
       const textDecoder = new TextDecoder();
       const reader = port.readable.getReader();
       const writer = port.writable.getWriter();
-      log("Reader and writer created");
+      log("リーダーとライターを作成しました");
 
-      setState({
+      setStatus({
         port,
         reader,
         writer,
         isConnected: true,
         error: null,
-        portInfo: portInfo, // 設定
+        portInfo,
+        connecting: false,
+        disconnecting: false,
       });
 
-      // クリーンアップフラグをリセット
-      cleanupRef.current = false;
-
-      // データ読み取りループを開始
-      log("Starting read loop");
+      log("データ読み取りループを開始...");
       readLoop(reader, textDecoder);
     } catch (error) {
-      log("Connection error:", error);
-      setState((prev) => ({
+      log("接続エラー:", error);
+      setStatus((prev) => ({
         ...prev,
         error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+          error instanceof Error ? error.message : "不明なエラーが発生しました",
+        connecting: false,
       }));
     }
-  }, []);
+  }, [status.isConnected, status.connecting]);
 
+  /**
+   * データ読み取りループ
+   */
   const readLoop = async (
-    reader: ReadableStreamDefaultReader,
+    reader: ReadableStreamDefaultReader<Uint8Array>,
     decoder: TextDecoder
   ) => {
-    try {
-      let buffer = "";
-      log("Read loop started");
+    let buffer = "";
+    log("読み取りループを開始しました");
 
+    try {
       while (!cleanupRef.current) {
         const { value, done } = await reader.read();
+
         if (done) {
-          log("Read loop done signal received");
+          log("読み取り完了信号を受信");
           break;
         }
 
         if (value) {
+          // データチャンクをデコード
           const chunk = decoder.decode(value, { stream: true });
-          log("Received chunk:", chunk);
+          log("データ受信:", chunk);
           buffer += chunk;
 
-          // 改行で分割してデータを処理
+          // データを行ごとに処理
           const lines = buffer.split(/\r?\n/);
-          buffer = lines.pop() || ""; // 最後の不完全な行を保持
+          buffer = lines.pop() || ""; // 最後の不完全な行を次の読み取りのために保持
 
           for (const line of lines) {
             if (line.trim()) {
-              // すでにコメント行ならそのまま渡す
-              if (line.startsWith("#")) {
-                log("Forwarding comment line:", line);
-                onDataReceived(line);
-                continue;
-              }
-
+              // 行が空でなければ処理
               try {
-                // データ形式の検証（簡易的な例）
-                const parts = line.trim().split(/\s+/);
-                // 期待されるカラム数をチェック（6, 7, 9のいずれか、dataParser.tsの定義より）
-                const isValidFormat = [6, 7, 9].includes(parts.length);
-                // 最初の値が数値かチェック
-                const isFirstColumnNumber = !isNaN(parseInt(parts[0], 10));
-
-                if (!isValidFormat || !isFirstColumnNumber) {
-                  // 不適切な行はコメント化して渡す
-                  const commentedLine = `# Invalid format: ${line}`;
-                  log("Invalid format, commenting:", commentedLine);
-                  onDataReceived(commentedLine);
-                } else {
-                  // 正常なデータはそのまま渡す
-                  log("Processing valid line:", line);
-                  onDataReceived(line);
-                }
-              } catch (parseError) {
-                // パース中にエラーが発生した場合もコメント化
-                const commentedLine = `# Parse error: ${line}`;
-                log("Parse error, commenting:", parseError, commentedLine);
-                onDataReceived(commentedLine);
+                // データ形式を検証し、必要に応じてコメント化
+                validateAndProcessLine(line, onDataReceived);
+              } catch (err) {
+                log("行の処理中にエラーが発生:", err);
               }
             }
           }
@@ -151,80 +157,141 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
       }
     } catch (error) {
       if (!cleanupRef.current) {
-        // クリーンアップ中のエラーは無視
-        log("Read loop error:", error);
-        setState((prev) => ({
+        log("読み取りループエラー:", error);
+        setStatus((prev) => ({
           ...prev,
-          error: error instanceof Error ? error.message : "Error reading data",
+          error:
+            error instanceof Error
+              ? error.message
+              : "データ読み取り中にエラーが発生しました",
         }));
       }
     } finally {
-      log("Read loop finished.");
-      // Ensure reader lock is released if loop terminates unexpectedly or normally
-      // Note: reader.releaseLock() should ideally be called after reader.cancel() in disconnect
-      // but placing it here handles cases where disconnect might not be called properly.
-      // Consider if this placement is truly needed based on application flow.
+      log("読み取りループを終了しました");
+      // ここではリーダーをクローズしない。disconnect内で適切に処理される
     }
   };
 
-  const disconnect = useCallback(async () => {
+  /**
+   * データ行の検証と処理
+   */
+  const validateAndProcessLine = (
+    line: string,
+    callback: (data: string) => void
+  ) => {
+    // すでにコメント行ならそのまま渡す
+    if (line.startsWith("#")) {
+      log("コメント行:", line);
+      callback(line);
+      return;
+    }
+
+    // データ形式を検証
     try {
-      log("Disconnecting...");
-      // クリーンアップフラグを設定
-      cleanupRef.current = true;
+      const parts = line.trim().split(/\s+/);
+      const validFormats = [6, 7, 9]; // 有効なカラム数 (dataParser.tsに基づく)
+      const isFirstColumnNumber = !isNaN(parseInt(parts[0], 10));
 
-      if (state.reader) {
-        log("Canceling reader");
-        await state.reader
-          .cancel()
-          .catch((err) => log("Reader cancel error:", err));
+      if (!validFormats.includes(parts.length) || !isFirstColumnNumber) {
+        // 無効なデータ形式の場合、コメント化して送信
+        const commentedLine = `# Invalid format: ${line}`;
+        log("無効なデータ形式、コメント化:", commentedLine);
+        callback(commentedLine);
+      } else {
+        // 有効なデータ行はそのまま送信
+        log("有効なデータ行:", line);
+        callback(line);
       }
-      if (state.writer) {
-        log("Closing writer");
-        await state.writer
-          .close()
-          .catch((err) => log("Writer close error:", err));
-      }
-      if (state.port) {
-        log("Closing port");
-        await state.port.close().catch((err) => log("Port close error:", err));
+    } catch (error) {
+      // パースエラーが発生した場合もコメント化
+      const commentedLine = `# Parse error: ${line}`;
+      log("パースエラー、コメント化:", error, commentedLine);
+      callback(commentedLine);
+    }
+  };
+
+  /**
+   * シリアルポート接続を切断
+   */
+  const disconnect = useCallback(async () => {
+    if (!status.isConnected || status.disconnecting) {
+      return;
+    }
+
+    setStatus((prev) => ({ ...prev, disconnecting: true }));
+    cleanupRef.current = true;
+
+    try {
+      log("切断処理を開始...");
+
+      if (status.reader) {
+        log("リーダーをキャンセル中");
+        try {
+          await status.reader.cancel();
+        } catch (err) {
+          log("リーダーのキャンセル中にエラー:", err);
+        }
       }
 
-      setState({
+      if (status.writer) {
+        log("ライターをクローズ中");
+        try {
+          await status.writer.close();
+        } catch (err) {
+          log("ライターのクローズ中にエラー:", err);
+        }
+      }
+
+      if (status.port) {
+        log("ポートをクローズ中");
+        try {
+          await status.port.close();
+        } catch (err) {
+          log("ポートのクローズ中にエラー:", err);
+        }
+      }
+
+      log("切断処理完了");
+    } catch (error) {
+      log("切断中にエラーが発生:", error);
+    } finally {
+      // 接続状態をリセット
+      setStatus({
         port: null,
         reader: null,
         writer: null,
         isConnected: false,
         error: null,
-        portInfo: null, // リセット
+        portInfo: null,
+        connecting: false,
+        disconnecting: false,
       });
-      log("Disconnected successfully");
-    } catch (error) {
-      log("Disconnect error:", error);
-      setState((prev) => ({
-        ...prev,
-        error: error instanceof Error ? error.message : "Error disconnecting",
-      }));
     }
-  }, [state.port, state.reader, state.writer]);
+  }, [
+    status.isConnected,
+    status.disconnecting,
+    status.port,
+    status.reader,
+    status.writer,
+  ]);
 
-  // コンポーネントのアンマウント時にクリーンアップを実行
+  // コンポーネントのアンマウント時にクリーンアップ
   useEffect(() => {
     return () => {
-      // アンマウント時に接続されていれば切断処理を呼ぶ
-      if (state.isConnected) {
-        // cleanupRefの設定はdisconnect関数内で行われるため不要
-        // cleanupRef.current = true;
+      if (status.isConnected) {
+        log("コンポーネントのアンマウントによるクリーンアップ");
+        cleanupRef.current = true;
         disconnect();
       }
     };
-    // ★ disconnect と state.isConnected を依存配列に追加
-  }, [disconnect, state.isConnected]);
+  }, [status.isConnected, disconnect]);
 
   return {
-    isConnected: state.isConnected,
-    error: state.error,
-    portInfo: state.portInfo,
+    isConnected: status.isConnected,
+    isConnecting: status.connecting,
+    isDisconnecting: status.disconnecting,
+    error: status.error,
+    portInfo: status.portInfo,
     connect,
     disconnect,
   };
