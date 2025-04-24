@@ -97,7 +97,6 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
       log("Read loop started");
 
       while (!cleanupRef.current) {
-        // クリーンアップフラグをチェック
         const { value, done } = await reader.read();
         if (done) {
           log("Read loop done signal received");
@@ -115,9 +114,37 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
 
           for (const line of lines) {
             if (line.trim()) {
-              // コメント行（#で始まる）も含めて処理
-              log("Processing line:", line);
-              onDataReceived(line);
+              // すでにコメント行ならそのまま渡す
+              if (line.startsWith("#")) {
+                log("Forwarding comment line:", line);
+                onDataReceived(line);
+                continue;
+              }
+
+              try {
+                // データ形式の検証（簡易的な例）
+                const parts = line.trim().split(/\s+/);
+                // 期待されるカラム数をチェック（6, 7, 9のいずれか、dataParser.tsの定義より）
+                const isValidFormat = [6, 7, 9].includes(parts.length);
+                // 最初の値が数値かチェック
+                const isFirstColumnNumber = !isNaN(parseInt(parts[0], 10));
+
+                if (!isValidFormat || !isFirstColumnNumber) {
+                  // 不適切な行はコメント化して渡す
+                  const commentedLine = `# Invalid format: ${line}`;
+                  log("Invalid format, commenting:", commentedLine);
+                  onDataReceived(commentedLine);
+                } else {
+                  // 正常なデータはそのまま渡す
+                  log("Processing valid line:", line);
+                  onDataReceived(line);
+                }
+              } catch (parseError) {
+                // パース中にエラーが発生した場合もコメント化
+                const commentedLine = `# Parse error: ${line}`;
+                log("Parse error, commenting:", parseError, commentedLine);
+                onDataReceived(commentedLine);
+              }
             }
           }
         }
