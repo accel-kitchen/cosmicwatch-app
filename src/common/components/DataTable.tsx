@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -10,60 +11,78 @@ interface DataTableProps {
   data: CosmicWatchData[];
 }
 
-// 列定義をコンポーネント外に定義 (再レンダリングでの再生成を防ぐ)
-const columns: ColumnDef<CosmicWatchData>[] = [
-  { accessorKey: "runNumber", header: "Run" },
-  { accessorKey: "eventNumber", header: "Event" },
-  { accessorKey: "boardIndex", header: "Board" },
-  {
-    accessorKey: "date",
-    header: "Date",
-    cell: (info) => info.getValue() ?? "-", // dateがない場合もあるため
-    enableHiding: true, // 非表示可能に
-  },
-  { accessorKey: "time", header: "Time" },
-  {
-    accessorKey: "totaltime",
-    header: "Total Time (s)",
-    cell: (info) => info.getValue() ?? "-", // totaltimeがない場合もあるため
-    enableHiding: true, // 非表示可能に
-  },
-  { accessorKey: "adc", header: "ADC" },
-  { accessorKey: "temp", header: "Temp (°C)" },
-  { accessorKey: "deadtime", header: "Deadtime (ms)" },
-];
+// ヘルパー関数: カラム定義を生成
+const generateColumns = (
+  sampleData?: CosmicWatchData
+): ColumnDef<CosmicWatchData>[] => {
+  const baseColumns: ColumnDef<CosmicWatchData>[] = [
+    { accessorKey: "event", header: "Event" },
+  ];
+
+  // データ形式に応じて列を追加
+  if (sampleData?.date !== undefined) {
+    baseColumns.push({ accessorKey: "date", header: "Date" });
+    baseColumns.push({
+      accessorKey: "totaltime",
+      header: "Total Time (s)",
+      cell: (info) => info.getValue() ?? "-",
+    });
+  } else if (sampleData?.time !== undefined) {
+    baseColumns.push({ accessorKey: "time", header: "Time" });
+  }
+
+  // 共通の列を追加
+  baseColumns.push(
+    { accessorKey: "adc", header: "ADC" },
+    {
+      accessorKey: "sipm",
+      header: "SiPM",
+      cell: (info) => {
+        const value = info.getValue();
+        return typeof value === "number" ? value.toFixed(2) : "-";
+      },
+    },
+    { accessorKey: "deadtime", header: "Deadtime (ms)" },
+    { accessorKey: "temp", header: "Temperature (°C)" }
+  );
+
+  // 追加センサーデータがあれば列を追加
+  if (sampleData?.hum !== undefined) {
+    baseColumns.push({
+      accessorKey: "hum",
+      header: "Humidity (%)",
+      cell: (info) => {
+        const value = info.getValue();
+        return typeof value === "number" ? value.toFixed(1) : "-";
+      },
+    });
+  }
+  if (sampleData?.press !== undefined) {
+    baseColumns.push({
+      accessorKey: "press",
+      header: "Pressure (hPa)",
+      cell: (info) => {
+        const value = info.getValue();
+        return typeof value === "number" ? value.toFixed(1) : "-";
+      },
+    });
+  }
+
+  return baseColumns;
+};
 
 export const DataTable = ({ data }: DataTableProps) => {
-  // 最初のデータに基づいて表示する列を動的に決定
-  const hasDateFormat = data.length > 0 && data[0].date !== undefined;
+  // データに基づいて動的に列定義を生成
+  const columns = useMemo(() => generateColumns(data[0]), [data[0]]);
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    // 列の表示/非表示を制御
-    initialState: {
-      columnVisibility: {
-        date: hasDateFormat,
-        totaltime: hasDateFormat,
-        time: !hasDateFormat, // dateがある場合はtimeを非表示にすることも検討
-      },
-    },
-    // データが変わったら列表示も更新
-    state: {
-      columnVisibility: {
-        date: hasDateFormat,
-        totaltime: hasDateFormat,
-        time: !hasDateFormat, // time は date がない場合のみ表示
-      },
-    },
   });
 
   return (
-    // テーブル全体に適用するスタイル
     <div className="overflow-x-auto">
-      {" "}
-      {/* 横スクロールを可能に */}
       <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
         <thead className="bg-gray-50">
           {table.getHeaderGroups().map((headerGroup) => (
@@ -71,7 +90,6 @@ export const DataTable = ({ data }: DataTableProps) => {
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  // ヘッダーセルのスタイル (パディング、文字揃え、文字スタイル)
                   className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
                 >
                   {header.isPlaceholder
@@ -87,7 +105,6 @@ export const DataTable = ({ data }: DataTableProps) => {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {table.getRowModel().rows.map((row) => (
-            // 行スタイル (ホバー効果など)
             <tr
               key={row.id}
               className="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
@@ -95,7 +112,6 @@ export const DataTable = ({ data }: DataTableProps) => {
               {row.getVisibleCells().map((cell) => (
                 <td
                   key={cell.id}
-                  // データセルのスタイル (パディング、文字スタイル、数値は右揃えなど)
                   className="px-4 py-3 whitespace-nowrap text-sm text-gray-700"
                   style={{
                     textAlign:

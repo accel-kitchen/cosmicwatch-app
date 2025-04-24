@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { SerialOptions, SerialPortState } from "../../shared/types";
+import { SerialOptions, SerialPortState, PortInfo } from "../../shared/types";
 
 const DEFAULT_OPTIONS: SerialOptions = {
   baudRate: 9600, // Arduinoのボーレートに合わせて修正
@@ -17,13 +17,20 @@ const log = (...args: any[]) => {
   }
 };
 
+// SerialPortStateにportInfoを追加
+interface ExtendedSerialPortState extends SerialPortState {
+  portInfo: PortInfo | null;
+}
+
 export const useSerialPort = (onDataReceived: (data: string) => void) => {
-  const [state, setState] = useState<SerialPortState>({
+  // Stateの型を拡張したものに変更
+  const [state, setState] = useState<ExtendedSerialPortState>({
     port: null,
     reader: null,
     writer: null,
     isConnected: false,
     error: null,
+    portInfo: null, // 初期値 null
   });
 
   // クリーンアップフラグを追加
@@ -38,6 +45,9 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
 
       const port = await navigator.serial.requestPort();
       log("Port selected:", port);
+      // ★ ポート情報を取得
+      const portInfo = port.getInfo();
+      log("Port info:", portInfo);
 
       log("Opening port with options:", DEFAULT_OPTIONS);
       await port.open(DEFAULT_OPTIONS);
@@ -59,6 +69,7 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
         writer,
         isConnected: true,
         error: null,
+        portInfo: portInfo, // 設定
       });
 
       // クリーンアップフラグをリセット
@@ -150,6 +161,7 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
         writer: null,
         isConnected: false,
         error: null,
+        portInfo: null, // リセット
       });
       log("Disconnected successfully");
     } catch (error) {
@@ -164,10 +176,7 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
   // Master/Slave機能のための遅延開始
   const connectWithDelay = useCallback(
     async (isMaster: boolean) => {
-      if (!isMaster) {
-        await new Promise((resolve) => setTimeout(resolve, 100)); // 0.1秒の遅延
-      }
-      await connect();
+      await connect(); // connectを直接呼ぶ (isMaster引数なし)
     },
     [connect]
   );
@@ -183,6 +192,7 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
   return {
     isConnected: state.isConnected,
     error: state.error,
+    portInfo: state.portInfo,
     connect,
     connectWithDelay,
     disconnect,

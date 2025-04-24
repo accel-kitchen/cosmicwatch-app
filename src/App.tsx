@@ -99,7 +99,7 @@ function App() {
   return (
     <Layout>
       {/* 1. ファイル設定 */}
-      <div className="gap-6 mb-6">
+      <div className="mb-6">
         <div>
           <FileControls
             rawData={rawData}
@@ -128,35 +128,28 @@ function App() {
         />
       </div>
 
-      {/* 3. データ表示 (横並び) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {" "}
-        {/* lg以上で横並び */}
-        <div className="mb-6 lg:mb-0">
-          {" "}
-          {/* 測定データ */}
+      {/* 3. データ表示 (縦並び) */}
+      <div className="space-y-6">
+        <div>
           <h2 className="text-2xl font-semibold mb-3 text-gray-800">
             測定データ
           </h2>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-lg shadow overflow-hidden max-h-80 overflow-y-auto">
             {parsedData.length > 0 ? (
               <DataTable data={parsedData} />
             ) : (
-              <div className="p-6 text-gray-500 text-center">
+              <div className="p-6 text-gray-500 text-center flex items-center justify-center h-full">
                 データを受信待ち...
               </div>
             )}
           </div>
         </div>
+
         <div>
-          {" "}
-          {/* 生データ */}
           <h2 className="text-2xl font-semibold mb-3 text-gray-800">
             生データ (最新100件)
           </h2>
-          <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg shadow overflow-auto max-h-96 text-sm font-mono">
-            {" "}
-            {/* max-hを調整 */}
+          <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg shadow overflow-auto max-h-80 text-sm font-mono">
             {rawData.slice(-100).join("\n")}
           </pre>
         </div>

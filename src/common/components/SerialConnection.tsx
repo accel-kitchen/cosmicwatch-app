@@ -14,18 +14,18 @@ export const SerialConnection = ({
   onConnectSuccess,
   onDisconnect,
 }: SerialConnectionProps) => {
-  const { isConnected, error, connectWithDelay, disconnect } =
+  const { isConnected, error, portInfo, connect, disconnect } =
     useSerialPort(onDataReceived);
 
   const handleConnect = useCallback(async () => {
     onClearData();
     try {
-      await connectWithDelay(true);
+      await connect();
       onConnectSuccess();
     } catch (error) {
       console.error("Connection failed in component:", error);
     }
-  }, [connectWithDelay, onClearData, onConnectSuccess]);
+  }, [connect, onClearData, onConnectSuccess]);
 
   const handleDisconnectInternal = useCallback(async () => {
     await disconnect();
@@ -52,6 +52,12 @@ export const SerialConnection = ({
           >
             {isConnected ? "接続中" : "未接続"}
           </span>
+          {isConnected && portInfo && (
+            <span className="ml-3 text-xs text-gray-500">
+              (VID: {portInfo.usbVendorId ?? "N/A"}, PID:{" "}
+              {portInfo.usbProductId ?? "N/A"})
+            </span>
+          )}
         </div>
 
         <button
