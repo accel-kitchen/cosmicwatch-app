@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Layout, SectionTitle } from "./common/components/Layout";
 import { SerialConnection } from "./common/components/SerialConnection";
 import { DataTable } from "./common/components/DataTable";
@@ -7,25 +7,39 @@ import { CosmicWatchData } from "./shared/types";
 import { FileControls } from "./common/components/FileControls";
 import { checkIsDesktop } from "./common/utils/platform";
 
+// データ関連の状態をグループ化する型
+interface MeasurementData {
+  raw: string[];
+  parsed: CosmicWatchData[];
+  startTime: Date | null;
+  endTime: Date | null;
+}
+
+// ファイル関連の状態をグループ化する型
+interface FileSettings {
+  comment: string;
+  suffix: string;
+  autoSavePath: string | null;
+}
+
 function App() {
-  const [rawData, setRawData] = useState<string[]>([]);
-  const [parsedData, setParsedData] = useState<CosmicWatchData[]>([]);
+  // 測定データの状態管理（グループ化）
+  const [data, setData] = useState<MeasurementData>({
+    raw: [],
+    parsed: [],
+    startTime: null,
+    endTime: null,
+  });
+
+  // ファイル関連の設定（グループ化）
+  const [fileSettings, setFileSettings] = useState<FileSettings>({
+    comment: "",
+    suffix: "",
+    autoSavePath: null,
+  });
+
+  // プラットフォーム検出
   const [isDesktop, setIsDesktop] = useState(false);
-  const [measurementStartTime, setMeasurementStartTime] = useState<Date | null>(
-    null
-  );
-  const [measurementEndTime, setMeasurementEndTime] = useState<Date | null>(
-    null
-  );
-
-  // Desktop版自動保存用State
-  const [autoSaveFileHandle, setAutoSaveFileHandle] = useState<string | null>(
-    null
-  );
-
-  // ★ コメントとサフィックスのStateをAppに追加
-  const [additionalComment, setAdditionalComment] = useState<string>("");
-  const [filenameSuffix, setFilenameSuffix] = useState<string>("");
 
   // Tauriアプリケーションの判定
   useEffect(() => {
@@ -38,81 +52,97 @@ function App() {
     });
   }, []);
 
-  const handleDataReceived = useCallback(
-    (newData: string) => {
-      // 最初のデータ受信時に開始時刻を設定
-      if (!measurementStartTime) {
-        setMeasurementStartTime(new Date());
-      }
-      setMeasurementEndTime(null); // データ受信中は終了時刻をリセット
+  // データ受信時のハンドラー（簡潔化）
+  const handleDataReceived = useCallback((newData: string) => {
+    setData((prevData) => {
+      const isFirstData = !prevData.startTime;
 
-      setRawData((prev) => {
-        const updatedRaw = [...prev, newData];
-        // Desktop版で自動保存が有効なら追記
-        if (isDesktop && autoSaveFileHandle) {
-          // FileControlsDesktop に追記処理を依頼 (後述)
-          // ここで直接ファイル追記はせず、FileControlsDesktopにデータを渡す
-        }
-        return updatedRaw;
-      });
+      // 生データの追加
+      const updatedRaw = [...prevData.raw, newData];
 
+      // 解析データの処理
       const parsed = parseCosmicWatchData(newData);
-      if (parsed) {
-        setParsedData((prev) => {
-          const updated = [...prev, parsed];
-          return updated.slice(-100);
-        });
-      }
-    },
-    [measurementStartTime, isDesktop, autoSaveFileHandle]
-  ); // 依存関係追加
+      const updatedParsed = parsed
+        ? [...prevData.parsed, parsed].slice(-100)
+        : prevData.parsed;
 
+      return {
+        raw: updatedRaw,
+        parsed: updatedParsed,
+        startTime: isFirstData ? new Date() : prevData.startTime,
+        endTime: null, // データ受信中は終了時刻をリセット
+      };
+    });
+  }, []);
+
+  // データクリア処理（簡潔化）
   const handleClearData = useCallback(() => {
-    setRawData([]);
-    setParsedData([]);
-    setMeasurementStartTime(null);
-    setMeasurementEndTime(null);
-    setAutoSaveFileHandle(null); // ファイルハンドルもクリア
+    setData({
+      raw: [],
+      parsed: [],
+      startTime: null,
+      endTime: null,
+    });
+
+    setFileSettings((prev) => ({
+      ...prev,
+      autoSavePath: null,
+    }));
   }, []);
 
-  // 接続成功時に自動保存開始トリガーをオン
+  // 接続成功時の処理
   const handleConnectSuccess = useCallback(() => {
-    // FileControlsDesktop側でmeasurementStartTimeを監視するため、
-    // ここでのトリガー設定は不要
-    console.log("Connect success (App.tsx)");
+    console.log("接続成功");
   }, []);
 
-  // 切断時に終了時刻設定と自動保存トリガーをオフ
+  // 切断時の処理
   const handleDisconnect = useCallback(() => {
-    if (measurementStartTime) {
-      setMeasurementEndTime(new Date());
-    }
-    setAutoSaveFileHandle(null);
-    console.log("Disconnect (App.tsx)");
-  }, [measurementStartTime]);
+    setData((prev) => ({
+      ...prev,
+      endTime: prev.startTime ? new Date() : null,
+    }));
 
-  // デバッグ用：parsedDataの変更を監視
-  useEffect(() => {
-    // console.log("Current parsedData:", parsedData); // 必要なら残す
-  }, [parsedData]);
+    setFileSettings((prev) => ({
+      ...prev,
+      autoSavePath: null,
+    }));
+  }, []);
+
+  // ファイルコメント更新ハンドラー
+  const handleCommentChange = useCallback((comment: string) => {
+    setFileSettings((prev) => ({ ...prev, comment }));
+  }, []);
+
+  // ファイル名サフィックス更新ハンドラー
+  const handleSuffixChange = useCallback((suffix: string) => {
+    setFileSettings((prev) => ({ ...prev, suffix }));
+  }, []);
+
+  // 自動保存パス更新ハンドラー
+  const handleAutoSavePathChange = useCallback((path: string | null) => {
+    setFileSettings((prev) => ({ ...prev, autoSavePath: path }));
+  }, []);
+
+  // 最新のrawDataを取得（メモ化）
+  const latestRawData = useMemo(() => {
+    return data.raw.length > 0 ? data.raw[data.raw.length - 1] : null;
+  }, [data.raw]);
 
   return (
     <Layout>
       {/* 1. ファイル設定 */}
       <div className="mb-6">
         <FileControls
-          rawData={rawData}
-          measurementStartTime={measurementStartTime}
-          measurementEndTime={measurementEndTime}
-          additionalComment={additionalComment}
-          setAdditionalComment={setAdditionalComment}
-          filenameSuffix={filenameSuffix}
-          setFilenameSuffix={setFilenameSuffix}
+          rawData={data.raw}
+          measurementStartTime={data.startTime}
+          measurementEndTime={data.endTime}
+          additionalComment={fileSettings.comment}
+          setAdditionalComment={handleCommentChange}
+          filenameSuffix={fileSettings.suffix}
+          setFilenameSuffix={handleSuffixChange}
           isDesktop={isDesktop}
-          setFileHandle={setAutoSaveFileHandle}
-          latestRawData={
-            rawData.length > 0 ? rawData[rawData.length - 1] : null
-          }
+          setFileHandle={handleAutoSavePathChange}
+          latestRawData={latestRawData}
         />
       </div>
 
@@ -131,8 +161,8 @@ function App() {
         <div className="p-6 bg-white rounded-lg shadow-md">
           <SectionTitle>測定データ (最新100件)</SectionTitle>
           <div className="bg-white rounded-lg overflow-hidden max-h-80 overflow-y-auto">
-            {parsedData.length > 0 ? (
-              <DataTable data={parsedData} />
+            {data.parsed.length > 0 ? (
+              <DataTable data={data.parsed} />
             ) : (
               <div className="p-6 text-gray-500 text-center flex items-center justify-center h-full">
                 データを受信待ち...
@@ -144,7 +174,7 @@ function App() {
         <div className="p-6 bg-white rounded-lg shadow-md">
           <SectionTitle>生データ (最新100件)</SectionTitle>
           <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg overflow-auto max-h-80 text-sm font-mono">
-            {rawData.slice(-100).join("\n")}
+            {data.raw.slice(-100).join("\n")}
           </pre>
         </div>
       </div>

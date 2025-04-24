@@ -4,103 +4,139 @@ import {
   getCoreRowModel,
   useReactTable,
   ColumnDef,
-  getSortedRowModel,
+  SortingState,
 } from "@tanstack/react-table";
 import { CosmicWatchData } from "../../shared/types";
+import { useSortedData } from "../hooks/useSortedData";
 
 interface DataTableProps {
   data: CosmicWatchData[];
 }
 
-// ヘルパー関数: カラム定義を生成
-const generateColumns = (
-  sampleData?: CosmicWatchData
-): ColumnDef<CosmicWatchData>[] => {
-  const baseColumns: ColumnDef<CosmicWatchData>[] = [
-    { accessorKey: "event", header: "Event" },
-  ];
+/**
+ * セルの値をフォーマットする関数
+ */
+const formatCellValue = (value: unknown, precision = 0): string => {
+  if (value === null || value === undefined) return "-";
 
-  // データ形式に応じて列を追加
-  if (sampleData?.date !== undefined) {
-    baseColumns.push({ accessorKey: "date", header: "Date" });
-    baseColumns.push({
-      accessorKey: "totaltime",
-      header: "Total Time (s)",
-      cell: (info) => info.getValue() ?? "-",
-    });
-  } else if (sampleData?.time !== undefined) {
-    baseColumns.push({ accessorKey: "time", header: "Time" });
+  if (typeof value === "number") {
+    return precision > 0 ? value.toFixed(precision) : value.toString();
   }
 
-  // 共通の列を追加
-  baseColumns.push(
-    { accessorKey: "adc", header: "ADC" },
-    {
-      accessorKey: "sipm",
-      header: "SiPM (mV)",
-      cell: (info) => {
-        const value = info.getValue();
-        return typeof value === "number" ? value.toFixed(2) : "-";
-      },
-    },
-    { accessorKey: "deadtime", header: "Deadtime (ms)" },
-    { accessorKey: "temp", header: "Temperature (°C)" }
-  );
-
-  // 追加センサーデータがあれば列を追加
-  if (sampleData?.hum !== undefined) {
-    baseColumns.push({
-      accessorKey: "hum",
-      header: "Humidity",
-      cell: (info) => {
-        const value = info.getValue();
-        return typeof value === "number" ? value.toFixed(1) : "-";
-      },
-    });
-  }
-  if (sampleData?.press !== undefined) {
-    baseColumns.push({
-      accessorKey: "press",
-      header: "Pressure",
-      cell: (info) => {
-        const value = info.getValue();
-        return typeof value === "number" ? value.toFixed(1) : "-";
-      },
-    });
-  }
-
-  return baseColumns;
+  return String(value);
 };
 
+/**
+ * データテーブルの列定義を生成する
+ */
+const useColumnsDefinition = (sampleData?: CosmicWatchData) => {
+  return useMemo(() => {
+    const columns: ColumnDef<CosmicWatchData>[] = [
+      {
+        accessorKey: "event",
+        header: "Event",
+        cell: (info) => formatCellValue(info.getValue()),
+      },
+    ];
+
+    // 日付/時間関連の列
+    if (sampleData?.date) {
+      columns.push({
+        accessorKey: "date",
+        header: "Date",
+        cell: (info) => formatCellValue(info.getValue()),
+      });
+      columns.push({
+        accessorKey: "totaltime",
+        header: "Total Time (s)",
+        cell: (info) => formatCellValue(info.getValue()),
+      });
+    } else if (sampleData?.time) {
+      columns.push({
+        accessorKey: "time",
+        header: "Time",
+        cell: (info) => formatCellValue(info.getValue()),
+      });
+    }
+
+    // 共通の測定データ列
+    columns.push(
+      {
+        accessorKey: "adc",
+        header: "ADC",
+        cell: (info) => formatCellValue(info.getValue()),
+      },
+      {
+        accessorKey: "sipm",
+        header: "SiPM (mV)",
+        cell: (info) => formatCellValue(info.getValue(), 2),
+      },
+      {
+        accessorKey: "deadtime",
+        header: "Deadtime (ms)",
+        cell: (info) => formatCellValue(info.getValue()),
+      },
+      {
+        accessorKey: "temp",
+        header: "Temperature (°C)",
+        cell: (info) => formatCellValue(info.getValue(), 1),
+      }
+    );
+
+    // 追加センサーデータがある場合
+    if (sampleData?.hum !== undefined) {
+      columns.push({
+        accessorKey: "hum",
+        header: "Humidity (%)",
+        cell: (info) => formatCellValue(info.getValue(), 1),
+      });
+    }
+
+    if (sampleData?.press !== undefined) {
+      columns.push({
+        accessorKey: "press",
+        header: "Pressure (hPa)",
+        cell: (info) => formatCellValue(info.getValue(), 1),
+      });
+    }
+
+    return columns;
+  }, [sampleData]);
+};
+
+/**
+ * 空データ表示コンポーネント
+ */
+const EmptyDataDisplay = () => (
+  <div className="p-6 text-gray-500 text-center flex items-center justify-center h-full">
+    データを受信待ち...
+  </div>
+);
+
 export const DataTable = ({ data }: DataTableProps) => {
-  // データを最新100件に制限
-  const latestData = useMemo(() => {
-    // イベント番号の降順（新しいものが上）にソート
-    return [...data]
-      .sort((a, b) => b.event - a.event) // 降順ソート
-      .slice(0, 100); // 最新100件を取得
-  }, [data]);
+  // ソート済みのデータ（最新100件、event降順）
+  const sortedData = useSortedData(data);
 
-  // データに基づいて動的に列定義を生成
-  const columns = useMemo(
-    () => generateColumns(latestData[0]),
-    [latestData[0]]
-  );
+  // サンプルデータに基づいた列定義
+  const columns = useColumnsDefinition(sortedData[0]);
 
+  // デフォルトのソート状態（eventの降順）
+  const initialSortState: SortingState = [{ id: "event", desc: true }];
+
+  // テーブル初期化
   const table = useReactTable({
-    data: latestData,
+    data: sortedData,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(), // ソート機能を追加
     initialState: {
-      sorting: [
-        {
-          id: "event",
-          desc: true, // 降順ソート（新しいものが上）
-        },
-      ],
+      sorting: initialSortState,
     },
   });
+
+  // データがない場合
+  if (sortedData.length === 0) {
+    return <EmptyDataDisplay />;
+  }
 
   return (
     <div className="overflow-x-auto">
@@ -111,7 +147,7 @@ export const DataTable = ({ data }: DataTableProps) => {
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 tracking-wider whitespace-nowrap"
+                  className="px-4 py-3 text-center text-xs font-medium text-gray-600 tracking-wider whitespace-nowrap"
                 >
                   {header.isPlaceholder
                     ? null
@@ -130,18 +166,20 @@ export const DataTable = ({ data }: DataTableProps) => {
               key={row.id}
               className="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
             >
-              {row.getVisibleCells().map((cell) => (
-                <td
-                  key={cell.id}
-                  className="px-4 py-3 whitespace-nowrap text-sm text-gray-700"
-                  style={{
-                    textAlign:
-                      typeof cell.getValue() === "number" ? "right" : "left",
-                  }}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
+              {row.getVisibleCells().map((cell) => {
+                const value = cell.getValue();
+                const isNumeric = typeof value === "number";
+
+                return (
+                  <td
+                    key={cell.id}
+                    className="px-4 py-3 whitespace-nowrap text-sm text-gray-700"
+                    style={{ textAlign: isNumeric ? "right" : "left" }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
