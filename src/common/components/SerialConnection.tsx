@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useSerialPort } from "../hooks/useSerialPort";
+import { SectionTitle } from "./Layout";
 
 interface SerialConnectionProps {
   onDataReceived: (data: string) => void;
@@ -33,10 +34,8 @@ export const SerialConnection = ({
   }, [disconnect, onDisconnect]);
 
   return (
-    <div className="p-5 bg-white rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold text-gray-700 mb-4">
-        CosmicWatchと接続
-      </h2>
+    <div className="p-6 bg-white rounded-lg shadow-md">
+      <SectionTitle>CosmicWatchと接続</SectionTitle>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center text-sm">
           <span

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { Layout } from "./common/components/Layout";
+import { Layout, SectionTitle } from "./common/components/Layout";
 import { SerialConnection } from "./common/components/SerialConnection";
 import { DataTable } from "./common/components/DataTable";
 import { parseCosmicWatchData } from "./common/utils/dataParser";
@@ -100,22 +100,20 @@ function App() {
     <Layout>
       {/* 1. ファイル設定 */}
       <div className="mb-6">
-        <div>
-          <FileControls
-            rawData={rawData}
-            measurementStartTime={measurementStartTime}
-            measurementEndTime={measurementEndTime}
-            additionalComment={additionalComment}
-            setAdditionalComment={setAdditionalComment}
-            filenameSuffix={filenameSuffix}
-            setFilenameSuffix={setFilenameSuffix}
-            isDesktop={isDesktop}
-            setFileHandle={setAutoSaveFileHandle}
-            latestRawData={
-              rawData.length > 0 ? rawData[rawData.length - 1] : null
-            }
-          />
-        </div>
+        <FileControls
+          rawData={rawData}
+          measurementStartTime={measurementStartTime}
+          measurementEndTime={measurementEndTime}
+          additionalComment={additionalComment}
+          setAdditionalComment={setAdditionalComment}
+          filenameSuffix={filenameSuffix}
+          setFilenameSuffix={setFilenameSuffix}
+          isDesktop={isDesktop}
+          setFileHandle={setAutoSaveFileHandle}
+          latestRawData={
+            rawData.length > 0 ? rawData[rawData.length - 1] : null
+          }
+        />
       </div>
 
       {/* 2. CosmicWatch接続 */}
@@ -130,11 +128,9 @@ function App() {
 
       {/* 3. データ表示 (縦並び) */}
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-semibold mb-3 text-gray-800">
-            測定データ (最新100件)
-          </h2>
-          <div className="bg-white rounded-lg shadow overflow-hidden max-h-80 overflow-y-auto">
+        <div className="p-6 bg-white rounded-lg shadow-md">
+          <SectionTitle>測定データ (最新100件)</SectionTitle>
+          <div className="bg-white rounded-lg overflow-hidden max-h-80 overflow-y-auto">
             {parsedData.length > 0 ? (
               <DataTable data={parsedData} />
             ) : (
@@ -145,11 +141,9 @@ function App() {
           </div>
         </div>
 
-        <div>
-          <h2 className="text-2xl font-semibold mb-3 text-gray-800">
-            生データ (最新100件)
-          </h2>
-          <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg shadow overflow-auto max-h-80 text-sm font-mono">
+        <div className="p-6 bg-white rounded-lg shadow-md">
+          <SectionTitle>生データ (最新100件)</SectionTitle>
+          <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg overflow-auto max-h-80 text-sm font-mono">
             {rawData.slice(-100).join("\n")}
           </pre>
         </div>
