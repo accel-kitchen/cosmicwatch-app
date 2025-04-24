@@ -1,12 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
-import "./App.css";
 import { Layout } from "./common/components/Layout";
 import { SerialConnection } from "./common/components/SerialConnection";
 import { DataTable } from "./common/components/DataTable";
 import { parseCosmicWatchData } from "./common/utils/dataParser";
 import { CosmicWatchData } from "./shared/types";
 import { FileControls } from "./common/components/FileControls";
-import { FileControlsDesktop } from "./common/components/FileControlsDesktop";
 import { checkIsDesktop } from "./common/utils/platform";
 
 function App() {
@@ -31,7 +29,13 @@ function App() {
 
   // Tauriアプリケーションの判定
   useEffect(() => {
-    checkIsDesktop().then(setIsDesktop);
+    checkIsDesktop().then((desktop) => {
+      setIsDesktop(desktop);
+      console.log(
+        "実行環境:",
+        desktop ? "デスクトップアプリ (Tauri)" : "Webブラウザ"
+      );
+    });
   }, []);
 
   const handleDataReceived = useCallback(
@@ -89,63 +93,71 @@ function App() {
 
   // デバッグ用：parsedDataの変更を監視
   useEffect(() => {
-    console.log("Current parsedData:", parsedData);
+    // console.log("Current parsedData:", parsedData); // 必要なら残す
   }, [parsedData]);
 
   return (
     <Layout>
-      <div className="bg-yellow-100 p-2 mb-4 rounded">
-        実行環境: {isDesktop ? "デスクトップアプリ" : "Webブラウザ"}
-        {isDesktop && <span className="ml-2">（Tauriアプリ）</span>}
-      </div>
-
-      <SerialConnection
-        onDataReceived={handleDataReceived}
-        onClearData={handleClearData}
-        onConnectSuccess={handleConnectSuccess}
-        onDisconnect={handleDisconnect}
-      />
-
-      <div className="mt-4 space-y-4">
-        <FileControls
-          rawData={rawData}
-          measurementStartTime={measurementStartTime}
-          measurementEndTime={measurementEndTime}
-          additionalComment={additionalComment}
-          setAdditionalComment={setAdditionalComment}
-          filenameSuffix={filenameSuffix}
-          setFilenameSuffix={setFilenameSuffix}
-        />
-
-        {isDesktop && (
-          <FileControlsDesktop
+      {/* 1. ファイル設定 */}
+      <div className="gap-6 mb-6">
+        <div>
+          <FileControls
+            rawData={rawData}
             measurementStartTime={measurementStartTime}
+            measurementEndTime={measurementEndTime}
+            additionalComment={additionalComment}
+            setAdditionalComment={setAdditionalComment}
+            filenameSuffix={filenameSuffix}
+            setFilenameSuffix={setFilenameSuffix}
+            isDesktop={isDesktop}
             setFileHandle={setAutoSaveFileHandle}
             latestRawData={
               rawData.length > 0 ? rawData[rawData.length - 1] : null
             }
-            additionalComment={additionalComment}
-            filenameSuffix={filenameSuffix}
           />
-        )}
+        </div>
+      </div>
 
-        <div>
-          <h2 className="text-xl font-bold mb-2">測定データ</h2>
-          <div className="bg-white rounded-lg shadow">
+      {/* 2. CosmicWatch接続 */}
+      <div className="mb-6">
+        <SerialConnection
+          onDataReceived={handleDataReceived}
+          onClearData={handleClearData}
+          onConnectSuccess={handleConnectSuccess}
+          onDisconnect={handleDisconnect}
+        />
+      </div>
+
+      {/* 3. データ表示 (横並び) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {" "}
+        {/* lg以上で横並び */}
+        <div className="mb-6 lg:mb-0">
+          {" "}
+          {/* 測定データ */}
+          <h2 className="text-2xl font-semibold mb-3 text-gray-800">
+            測定データ
+          </h2>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
             {parsedData.length > 0 ? (
               <DataTable data={parsedData} />
             ) : (
-              <div className="p-4 text-gray-500 text-center">
+              <div className="p-6 text-gray-500 text-center">
                 データを受信待ち...
               </div>
             )}
           </div>
         </div>
-
         <div>
-          <h2 className="text-xl font-bold mb-2">生データ</h2>
-          <pre className="bg-gray-100 p-4 rounded overflow-auto max-h-48 text-sm">
-            {rawData.join("\n")}
+          {" "}
+          {/* 生データ */}
+          <h2 className="text-2xl font-semibold mb-3 text-gray-800">
+            生データ (最新100件)
+          </h2>
+          <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg shadow overflow-auto max-h-96 text-sm font-mono">
+            {" "}
+            {/* max-hを調整 */}
+            {rawData.slice(-100).join("\n")}
           </pre>
         </div>
       </div>

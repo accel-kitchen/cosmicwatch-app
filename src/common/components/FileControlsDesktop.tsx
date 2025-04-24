@@ -165,87 +165,82 @@ export const FileControlsDesktop = ({
   };
 
   return (
-    <div className="space-y-4 bg-white rounded-lg shadow p-4">
-      {/* 追加コメント */}
-      {/*
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          追加コメント
-        </label>
-        <textarea
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-          rows={4}
-          value={additionalComment}
-          onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-            setAdditionalComment(e.target.value)
-          }
-          placeholder="測定条件などのコメントを入力..."
-        />
-      </div>
-       */}
+    <div className="p-6 bg-white rounded-lg shadow-md space-y-5">
+      <h2 className="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">
+        自動保存設定 (デスクトップ)
+      </h2>
+      {/* 追加コメントとファイル名追加情報の入力欄は削除 (FileControls側で表示) */}
 
-      {/* ファイル名の追加情報 */}
-      {/*
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          ファイル名の追加情報
-        </label>
-        <input
-          type="text"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-          value={filenameSuffix}
-          onChange={(e: ChangeEvent<HTMLInputElement>) =>
-            setFilenameSuffix(e.target.value)
-          }
-          placeholder="例: test1"
-        />
-      </div>
-       */}
-
-      {/* 自動保存設定 */}
-      <div className="border-t pt-4 mt-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        {" "}
+        {/* 自動保存フォルダ設定 */}
+        <label
+          htmlFor="saveDirectory"
+          className="block text-sm font-medium text-gray-700 mb-1"
+        >
           自動保存先フォルダ
         </label>
-        <div className="flex gap-2 mb-2">
+        <div className="flex items-center gap-2">
           <input
+            id="saveDirectory"
             type="text"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+            className="flex-grow block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 sm:text-sm" // bg-gray-100 で編集不可感を出す
             value={saveDirectory}
             readOnly
-            placeholder="保存先フォルダ..."
+            placeholder="フォルダを選択..."
           />
           <button
             onClick={handleSelectCustomPath}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            className="flex-shrink-0 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out"
           >
-            フォルダ変更
+            変更
           </button>
         </div>
-        <div className="flex items-center gap-2">
+      </div>
+
+      <div>
+        {" "}
+        {/* 自動保存有効/無効 */}
+        <div className="flex items-center mt-2">
           <input
-            type="checkbox"
             id="autoSave"
+            type="checkbox"
             checked={autoSaveEnabled}
             onChange={(e) => {
               const isChecked = e.target.checked;
               setAutoSaveEnabled(isChecked);
               if (!isChecked) {
-                // logDebug("Auto save disabled..."); // 削除
                 setCurrentFilePath(null);
                 setFileHandle(null);
                 setIsFileCreated(false);
               }
             }}
-            className="rounded border-gray-300"
+            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2 cursor-pointer"
           />
-          <label htmlFor="autoSave" className="text-sm text-gray-700">
+          <label
+            htmlFor="autoSave"
+            className="text-sm font-medium text-gray-700 select-none cursor-pointer"
+          >
             接続時に自動でファイルを作成し追記する
           </label>
         </div>
         {currentFilePath && autoSaveEnabled && (
+          <p className="text-xs text-green-700 mt-1 font-medium">
+            自動保存中:{" "}
+            <span className="font-normal text-gray-600 break-all">
+              {currentFilePath}
+            </span>
+          </p>
+        )}
+        {!autoSaveEnabled && (
+          <p className="text-xs text-gray-500 mt-1">自動保存は無効です。</p>
+        )}
+        {autoSaveEnabled && !currentFilePath && measurementStartTime && (
+          <p className="text-xs text-yellow-600 mt-1">ファイル作成待機中...</p>
+        )}
+        {autoSaveEnabled && !measurementStartTime && (
           <p className="text-xs text-gray-500 mt-1">
-            自動保存中: {currentFilePath}
+            接続後に自動保存が開始されます。
           </p>
         )}
       </div>
