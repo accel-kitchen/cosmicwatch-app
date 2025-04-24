@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { SerialOptions, SerialPortState, PortInfo } from "../../shared/types";
+import { SerialPortState, PortInfo } from "../../shared/types";
 
-const DEFAULT_OPTIONS: SerialOptions = {
-  baudRate: 9600, // Arduinoのボーレートに合わせて修正
-  dataBits: 8,
-  stopBits: 1,
-  parity: "none",
+const DEFAULT_OPTIONS = {
+  baudRate: 9600,
+  dataBits: 8 as const,
+  stopBits: 1 as const,
+  parity: "none" as const,
   bufferSize: 255,
 };
 
@@ -131,6 +131,12 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
           error: error instanceof Error ? error.message : "Error reading data",
         }));
       }
+    } finally {
+      log("Read loop finished.");
+      // Ensure reader lock is released if loop terminates unexpectedly or normally
+      // Note: reader.releaseLock() should ideally be called after reader.cancel() in disconnect
+      // but placing it here handles cases where disconnect might not be called properly.
+      // Consider if this placement is truly needed based on application flow.
     }
   };
 
@@ -142,17 +148,19 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
 
       if (state.reader) {
         log("Canceling reader");
-        await state.reader.cancel();
-        await state.reader.releaseLock();
+        await state.reader
+          .cancel()
+          .catch((err) => log("Reader cancel error:", err));
       }
       if (state.writer) {
         log("Closing writer");
-        await state.writer.close();
-        await state.writer.releaseLock();
+        await state.writer
+          .close()
+          .catch((err) => log("Writer close error:", err));
       }
       if (state.port) {
         log("Closing port");
-        await state.port.close();
+        await state.port.close().catch((err) => log("Port close error:", err));
       }
 
       setState({
@@ -171,30 +179,26 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
         error: error instanceof Error ? error.message : "Error disconnecting",
       }));
     }
-  }, [state.reader, state.writer, state.port]);
+  }, [state.port, state.reader, state.writer]);
 
-  // Master/Slave機能のための遅延開始
-  const connectWithDelay = useCallback(
-    async (isMaster: boolean) => {
-      await connect(); // connectを直接呼ぶ (isMaster引数なし)
-    },
-    [connect]
-  );
-
-  // コンポーネントのアンマウント時のみクリーンアップを実行
+  // コンポーネントのアンマウント時にクリーンアップを実行
   useEffect(() => {
     return () => {
-      cleanupRef.current = true;
-      disconnect();
+      // アンマウント時に接続されていれば切断処理を呼ぶ
+      if (state.isConnected) {
+        // cleanupRefの設定はdisconnect関数内で行われるため不要
+        // cleanupRef.current = true;
+        disconnect();
+      }
     };
-  }, []); // 依存配列を空にして、アンマウント時のみ実行
+    // ★ disconnect と state.isConnected を依存配列に追加
+  }, [disconnect, state.isConnected]);
 
   return {
     isConnected: state.isConnected,
     error: state.error,
     portInfo: state.portInfo,
     connect,
-    connectWithDelay,
     disconnect,
   };
 };
