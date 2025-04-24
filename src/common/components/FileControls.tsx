@@ -238,7 +238,7 @@ export const FileControls = ({
           className={`block w-full px-3 py-2 border ${
             includeComments
               ? "border-gray-300 bg-white"
-              : "border-gray-200 bg-gray-100"
+              : "border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed"
           } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out`}
           rows={3}
           value={additionalComment}
@@ -255,7 +255,7 @@ export const FileControls = ({
           htmlFor="filenameSuffix"
           className="block text-sm font-medium text-gray-700 mb-1"
         >
-          ファイル名に追加する情報
+          ファイル名末尾に追加するテキスト
         </label>
         <input
           id="filenameSuffix"

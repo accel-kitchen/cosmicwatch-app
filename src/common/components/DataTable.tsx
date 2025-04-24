@@ -37,7 +37,7 @@ const generateColumns = (
     { accessorKey: "adc", header: "ADC" },
     {
       accessorKey: "sipm",
-      header: "SiPM",
+      header: "SiPM (mV)",
       cell: (info) => {
         const value = info.getValue();
         return typeof value === "number" ? value.toFixed(2) : "-";
@@ -51,7 +51,7 @@ const generateColumns = (
   if (sampleData?.hum !== undefined) {
     baseColumns.push({
       accessorKey: "hum",
-      header: "Humidity (%)",
+      header: "Humidity",
       cell: (info) => {
         const value = info.getValue();
         return typeof value === "number" ? value.toFixed(1) : "-";
@@ -61,7 +61,7 @@ const generateColumns = (
   if (sampleData?.press !== undefined) {
     baseColumns.push({
       accessorKey: "press",
-      header: "Pressure (hPa)",
+      header: "Pressure",
       cell: (info) => {
         const value = info.getValue();
         return typeof value === "number" ? value.toFixed(1) : "-";
@@ -111,7 +111,7 @@ export const DataTable = ({ data }: DataTableProps) => {
               {headerGroup.headers.map((header) => (
                 <th
                   key={header.id}
-                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                  className="px-4 py-3 text-center text-xs font-medium text-gray-500 tracking-wider whitespace-nowrap"
                 >
                   {header.isPlaceholder
                     ? null
