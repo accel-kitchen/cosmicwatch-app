@@ -1,66 +1,82 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useSerialPort } from "../hooks/useSerialPort";
-import { SerialPortConfig } from "../../shared/types";
 
 interface SerialConnectionProps {
   onDataReceived: (data: string) => void;
   onClearData: () => void;
+  onConnectSuccess: () => void;
+  onDisconnect: () => void;
 }
 
 export const SerialConnection = ({
   onDataReceived,
   onClearData,
+  onConnectSuccess,
+  onDisconnect,
 }: SerialConnectionProps) => {
-  const [config, setConfig] = useState<SerialPortConfig>({
-    isMaster: true,
-    portNumber: "",
-  });
-
-  const { isConnected, error, connectWithDelay, disconnect } =
+  const { isConnected, error, portInfo, connect, disconnect } =
     useSerialPort(onDataReceived);
 
   const handleConnect = useCallback(async () => {
     onClearData();
-    await connectWithDelay(config.isMaster);
-  }, [connectWithDelay, config.isMaster, onClearData]);
+    try {
+      await connect();
+      onConnectSuccess();
+    } catch (error) {
+      console.error("Connection failed in component:", error);
+    }
+  }, [connect, onClearData, onConnectSuccess]);
+
+  const handleDisconnectInternal = useCallback(async () => {
+    await disconnect();
+    onDisconnect();
+  }, [disconnect, onDisconnect]);
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow">
-      <div className="flex items-center gap-4 mb-4">
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            checked={config.isMaster}
-            onChange={(e) =>
-              setConfig((prev) => ({ ...prev, isMaster: e.target.checked }))
-            }
-            className="mr-2"
-          />
-          Master機として接続
-        </label>
-      </div>
+    <div className="p-5 bg-white rounded-lg shadow-md">
+      <h2 className="text-xl font-semibold text-gray-700 mb-4">
+        CosmicWatchとの接続
+      </h2>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center text-sm">
+          <span
+            className={`mr-2 h-3 w-3 rounded-full ${
+              isConnected ? "bg-green-500 animate-pulse" : "bg-gray-400"
+            }`}
+          ></span>
+          <span className="font-medium text-gray-600">状態:</span>
+          <span
+            className={`ml-1.5 font-semibold ${
+              isConnected ? "text-green-700" : "text-gray-600"
+            }`}
+          >
+            {isConnected ? "接続中" : "未接続"}
+          </span>
+          {isConnected && portInfo && (
+            <span className="ml-3 text-xs text-gray-500">
+              (VID: {portInfo.usbVendorId ?? "N/A"}, PID:{" "}
+              {portInfo.usbProductId ?? "N/A"})
+            </span>
+          )}
+        </div>
 
-      <div className="flex gap-2">
         <button
-          onClick={isConnected ? disconnect : handleConnect}
-          className={`px-4 py-2 rounded ${
+          onClick={isConnected ? handleDisconnectInternal : handleConnect}
+          className={`px-4 py-2 rounded-md font-medium text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${
             isConnected
-              ? "bg-red-500 hover:bg-red-600"
-              : "bg-blue-500 hover:bg-blue-600"
-          } text-white`}
+              ? "bg-red-500 hover:bg-red-600 text-white focus:ring-red-500"
+              : "bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-600"
+          }`}
         >
           {isConnected ? "切断" : "接続"}
         </button>
       </div>
 
-      {error && <div className="mt-2 text-red-500">エラー: {error}</div>}
-
-      {/* デバッグ情報 */}
-      <div className="mt-4 p-2 bg-gray-100 rounded text-sm">
-        <h3 className="font-bold">デバッグ情報:</h3>
-        <div>接続状態: {isConnected ? "接続中" : "未接続"}</div>
-        <div>Master/Slave: {config.isMaster ? "Master" : "Slave"}</div>
-      </div>
+      {error && (
+        <div className="mt-3 pt-3 border-t border-gray-200 text-sm">
+          <p className="text-red-600 font-medium">エラー: {error}</p>
+        </div>
+      )}
     </div>
   );
 };

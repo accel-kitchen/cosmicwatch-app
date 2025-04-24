@@ -18,9 +18,9 @@ export interface SerialPortConfig {
 
 export interface SerialOptions {
   baudRate: number;
-  dataBits: 8;
-  stopBits: 1;
-  parity: "none";
+  dataBits: number;
+  stopBits: number;
+  parity: ParityType;
   bufferSize: number;
 }
 
@@ -33,3 +33,8 @@ export interface SerialPortState {
 }
 
 export type SerialDataCallback = (data: string) => void;
+
+export interface PortInfo {
+  usbVendorId?: number;
+  usbProductId?: number;
+}

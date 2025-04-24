@@ -12,6 +12,7 @@
     "tauri:build": "pnpm tauri build"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.1.4",
     "@tanstack/react-table": "^8.21.3",
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.2.1",
