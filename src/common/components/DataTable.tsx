@@ -109,7 +109,7 @@ const useColumnsDefinition = (sampleData?: CosmicWatchData) => {
  */
 const EmptyDataDisplay = () => (
   <div className="p-6 text-gray-500 text-center flex items-center justify-center h-full">
-    データを受信待ち...
+    データ受信待ち...
   </div>
 );
 

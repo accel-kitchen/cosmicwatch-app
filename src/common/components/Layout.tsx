@@ -24,7 +24,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
       <div className="max-w-6xl mx-auto">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold">CosmicWatch Recorder</h1>
+          <h1 className="text-3xl font-bold text-center">
+            CosmicWatch Recorder
+          </h1>
         </header>
         <main>{children}</main>
         <footer className="mt-12 pt-4 border-t border-gray-200 text-center text-gray-500 text-sm">

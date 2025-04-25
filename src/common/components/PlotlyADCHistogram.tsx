@@ -17,7 +17,7 @@ export const ADCHistogram = ({
   // 表示用データの状態
   const [displayData, setDisplayData] = useState<CosmicWatchData[]>([]);
   // 更新間隔（秒）
-  const [updateInterval, setUpdateInterval] = useState<number>(5);
+  const [updateInterval, setUpdateInterval] = useState<number>(10);
   // 最終更新時刻
   const lastUpdateRef = useRef<number>(Date.now());
   // 更新タイマー
@@ -141,7 +141,7 @@ export const ADCHistogram = ({
       <div className="p-6 bg-white rounded-lg shadow-md">
         <SectionTitle>データ解析</SectionTitle>
         <div className="p-6 text-gray-500 text-center flex items-center justify-center h-40">
-          データが不足しています...
+          データ受信待ち...
         </div>
       </div>
     );
