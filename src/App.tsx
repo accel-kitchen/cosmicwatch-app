@@ -141,40 +141,44 @@ function App() {
 
   return (
     <Layout>
-      {/* 1. ファイル設定 */}
-      <div className="mb-6">
-        <FileControls
-          rawData={data.raw}
-          measurementStartTime={data.startTime}
-          measurementEndTime={data.endTime}
-          additionalComment={fileSettings.comment}
-          setAdditionalComment={handleCommentChange}
-          filenameSuffix={fileSettings.suffix}
-          setFilenameSuffix={handleSuffixChange}
-          isDesktop={isDesktop}
-          setFileHandle={handleAutoSavePathChange}
-          latestRawData={latestRawData}
-        />
+      {/* レスポンシブレイアウト - 大画面では2カラム、小画面では縦並び */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* 左カラム */}
+        <div className="space-y-6">
+          {/* 1. ファイル設定 */}
+          <FileControls
+            rawData={data.raw}
+            measurementStartTime={data.startTime}
+            measurementEndTime={data.endTime}
+            additionalComment={fileSettings.comment}
+            setAdditionalComment={handleCommentChange}
+            filenameSuffix={fileSettings.suffix}
+            setFilenameSuffix={handleSuffixChange}
+            isDesktop={isDesktop}
+            setFileHandle={handleAutoSavePathChange}
+            latestRawData={latestRawData}
+          />
+        </div>
+
+        {/* 右カラム */}
+        <div className="space-y-6">
+          {/* 3. データ解析（ヒストグラム） */}
+          <ADCHistogram data={data.allParsed} startTime={data.startTime} />
+        </div>
       </div>
 
-      {/* 2. CosmicWatch接続 */}
-      <div className="mb-6">
+      {/* 下部セクション（全幅） */}
+      <div className="mt-6 space-y-6">
+        {/* 2. CosmicWatch接続 */}
         <SerialConnection
           onDataReceived={handleDataReceived}
           onClearData={handleClearData}
           onConnectSuccess={handleConnectSuccess}
           onDisconnect={handleDisconnect}
         />
-      </div>
-
-      {/* データ表示セクション */}
-      <div className="space-y-6">
-        {/* 全データを使用するPlotlyヒストグラム */}
-        <ADCHistogram data={data.allParsed} startTime={data.startTime} />
-
-        {/* 既存のデータテーブル（最新100件） */}
+        {/* 4. 測定データテーブル */}
         <div className="p-6 bg-white rounded-lg shadow-md">
-          <SectionTitle>測定データ (最新100件)</SectionTitle>
+          <SectionTitle>測定データ</SectionTitle>
           <div className="bg-white rounded-lg overflow-hidden max-h-80 overflow-y-auto">
             {data.parsed.length > 0 ? (
               <DataTable data={data.parsed} />
@@ -186,9 +190,9 @@ function App() {
           </div>
         </div>
 
-        {/* 既存の生データ表示 */}
+        {/* 5. 生データ表示 */}
         <div className="p-6 bg-white rounded-lg shadow-md">
-          <SectionTitle>生データ (最新100件)</SectionTitle>
+          <SectionTitle>生データ</SectionTitle>
           <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg overflow-auto max-h-80 text-sm font-mono">
             {data.raw.slice(-100).join("\n")}
           </pre>
