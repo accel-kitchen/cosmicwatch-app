@@ -17,6 +17,7 @@
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.2.1",
     "@tauri-apps/plugin-fs": "^2.2.1",
+    "@tauri-apps/plugin-updater": "~2",
     "@types/plotly.js": "^2.35.5",
     "@types/react-plotly.js": "^2.6.3",
     "plotly.js": "^3.0.1",
