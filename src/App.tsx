@@ -6,11 +6,13 @@ import { parseCosmicWatchData } from "./common/utils/dataParser";
 import { CosmicWatchData } from "./shared/types";
 import { FileControls } from "./common/components/FileControls";
 import { checkIsDesktop } from "./common/utils/platform";
+import { ADCHistogram } from "./common/components/PlotlyADCHistogram";
 
 // データ関連の状態をグループ化する型
 interface MeasurementData {
   raw: string[];
   parsed: CosmicWatchData[];
+  allParsed: CosmicWatchData[];
   startTime: Date | null;
   endTime: Date | null;
 }
@@ -27,6 +29,7 @@ function App() {
   const [data, setData] = useState<MeasurementData>({
     raw: [],
     parsed: [],
+    allParsed: [],
     startTime: null,
     endTime: null,
   });
@@ -52,7 +55,7 @@ function App() {
     });
   }, []);
 
-  // データ受信時のハンドラー（簡潔化）
+  // データ受信時のハンドラー（修正）
   const handleDataReceived = useCallback((newData: string) => {
     setData((prevData) => {
       const isFirstData = !prevData.startTime;
@@ -62,6 +65,12 @@ function App() {
 
       // 解析データの処理
       const parsed = parseCosmicWatchData(newData);
+
+      // 全データとテーブル表示用データ（最新100件）を別々に管理
+      const updatedAllParsed = parsed
+        ? [...prevData.allParsed, parsed]
+        : prevData.allParsed;
+
       const updatedParsed = parsed
         ? [...prevData.parsed, parsed].slice(-100)
         : prevData.parsed;
@@ -69,17 +78,19 @@ function App() {
       return {
         raw: updatedRaw,
         parsed: updatedParsed,
+        allParsed: updatedAllParsed,
         startTime: isFirstData ? new Date() : prevData.startTime,
         endTime: null, // データ受信中は終了時刻をリセット
       };
     });
   }, []);
 
-  // データクリア処理（簡潔化）
+  // データクリア処理（更新）
   const handleClearData = useCallback(() => {
     setData({
       raw: [],
       parsed: [],
+      allParsed: [],
       startTime: null,
       endTime: null,
     });
@@ -156,8 +167,12 @@ function App() {
         />
       </div>
 
-      {/* 3. データ表示 (縦並び) */}
+      {/* データ表示セクション */}
       <div className="space-y-6">
+        {/* 全データを使用するPlotlyヒストグラム */}
+        <ADCHistogram data={data.allParsed} startTime={data.startTime} />
+
+        {/* 既存のデータテーブル（最新100件） */}
         <div className="p-6 bg-white rounded-lg shadow-md">
           <SectionTitle>測定データ (最新100件)</SectionTitle>
           <div className="bg-white rounded-lg overflow-hidden max-h-80 overflow-y-auto">
@@ -171,6 +186,7 @@ function App() {
           </div>
         </div>
 
+        {/* 既存の生データ表示 */}
         <div className="p-6 bg-white rounded-lg shadow-md">
           <SectionTitle>生データ (最新100件)</SectionTitle>
           <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg overflow-auto max-h-80 text-sm font-mono">
