@@ -17,7 +17,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "tauri:dev": "pnpm tauri dev",
-    "tauri:build": "pnpm tauri build"
+    "tauri:build": "pnpm tauri build",
+    "sign:win": "signtool.exe sign /f \"C:\\path\\to\\your\\selfsigned_codesign.pfx\" /p YOUR_PFX_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 \"src-tauri\\target\\release\\YourAppName.exe\"",
+    "build:signed": "pnpm tauri:build && pnpm run sign:win"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.4",
