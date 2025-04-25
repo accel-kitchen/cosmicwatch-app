@@ -25,6 +25,7 @@
     }
   },
   "bundle": {
+    "publisher": "nagi",
     "active": true,
     "targets": "all",
     "createUpdaterArtifacts": true,

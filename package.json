@@ -1,8 +1,16 @@
 {
-  "name": "cosmicwatch_app",
+  "name": "cosmicwatch-recorder",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "author": {
+    "name": "nagi",
+    "email": "naginagi.hobby@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nagi-hobbies/cosmicwatch-app"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
