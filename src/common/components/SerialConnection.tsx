@@ -7,6 +7,7 @@ interface SerialConnectionProps {
   onClearData: () => void;
   onConnectSuccess: () => void;
   onDisconnect: () => void;
+  isDemoMode: boolean;
 }
 
 export const SerialConnection = ({
@@ -14,6 +15,7 @@ export const SerialConnection = ({
   onClearData,
   onConnectSuccess,
   onDisconnect,
+  isDemoMode,
 }: SerialConnectionProps) => {
   const {
     isConnected,
@@ -26,6 +28,7 @@ export const SerialConnection = ({
   } = useSerialPort(onDataReceived);
 
   const handleConnect = useCallback(async () => {
+    if (isDemoMode) return;
     onClearData();
     try {
       await connect();
@@ -33,7 +36,7 @@ export const SerialConnection = ({
     } catch (error) {
       console.error("Connection failed in component:", error);
     }
-  }, [connect, onClearData, onConnectSuccess]);
+  }, [connect, onClearData, onConnectSuccess, isDemoMode]);
 
   const handleDisconnect = useCallback(async () => {
     await disconnect();
@@ -67,15 +70,17 @@ export const SerialConnection = ({
         text: isDisconnecting ? "切断中..." : "切断",
       };
     } else {
+      const isDisabled = isConnecting || isDemoMode;
       return {
         onClick: handleConnect,
-        disabled: isConnecting,
+        disabled: isDisabled,
         className: `px-4 py-2 rounded-md font-medium text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-          isConnecting
+          isDisabled
             ? "bg-gray-400 text-gray-200 cursor-not-allowed"
             : "bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-600"
         }`,
         text: isConnecting ? "接続中..." : "接続",
+        title: isDemoMode ? "デモモード中は接続できません" : "",
       };
     }
   };
@@ -110,6 +115,7 @@ export const SerialConnection = ({
           onClick={buttonProps.onClick}
           disabled={buttonProps.disabled}
           className={buttonProps.className}
+          title={buttonProps.title}
         >
           {buttonProps.text}
         </button>
