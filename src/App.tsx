@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Layout, SectionTitle } from "./common/components/Layout";
 import { SerialConnection } from "./common/components/SerialConnection";
 import { DataTable } from "./common/components/DataTable";
@@ -7,6 +7,7 @@ import { CosmicWatchData } from "./shared/types";
 import { FileControls } from "./common/components/FileControls";
 import { checkIsDesktop } from "./common/utils/platform";
 import { ADCHistogram } from "./common/components/PlotlyADCHistogram";
+import { generateDemoData, resetDemoDataState } from "./common/utils/demoData";
 
 // データ関連の状態をグループ化する型
 interface MeasurementData {
@@ -43,6 +44,10 @@ function App() {
 
   // プラットフォーム検出
   const [isDesktop, setIsDesktop] = useState(false);
+
+  // デモモード状態と制御
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const demoIntervalRef = useRef<number | null>(null);
 
   // Tauriアプリケーションの判定
   useEffect(() => {
@@ -139,8 +144,60 @@ function App() {
     return data.raw.length > 0 ? data.raw[data.raw.length - 1] : null;
   }, [data.raw]);
 
+  // デモモード開始
+  const startDemoMode = () => {
+    handleClearData(); // アプリの状態をクリア
+    resetDemoDataState(); // デモデータのカウンターと時間をリセット
+    setIsDemoMode(true);
+  };
+
+  // デモモード終了
+  const stopDemoMode = () => {
+    setIsDemoMode(false);
+    // デモ終了時にもデータをクリアする場合 (任意)
+    // handleClearData();
+  };
+
+  // デモデータ自動生成
+  useEffect(() => {
+    if (isDemoMode) {
+      demoIntervalRef.current = setInterval(() => {
+        const demoData = generateDemoData();
+        handleDataReceived(demoData);
+      }, 1000); // 0.5秒ごとにデータ生成
+    } else if (demoIntervalRef.current) {
+      clearInterval(demoIntervalRef.current);
+      demoIntervalRef.current = null;
+    }
+    return () => {
+      if (demoIntervalRef.current) {
+        clearInterval(demoIntervalRef.current);
+        demoIntervalRef.current = null;
+      }
+    };
+  }, [isDemoMode, handleDataReceived]);
+
   return (
     <Layout>
+      {/* アプリ右上へのデモモードボタン */}
+      <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
+        {isDemoMode && (
+          <span className="text-red-600 font-bold text-sm bg-white px-2 py-1 rounded shadow">
+            デモモード中
+          </span>
+        )}
+        <button
+          className={`px-3 py-2 rounded-md text-sm ${
+            isDemoMode
+              ? "bg-red-500 hover:bg-red-600"
+              : "bg-green-500 hover:bg-green-600"
+          } text-white shadow`}
+          onClick={isDemoMode ? stopDemoMode : startDemoMode}
+        >
+          {isDemoMode ? "停止" : "デモ モード"}
+        </button>
+      </div>
+
       {/* レスポンシブレイアウト - 大画面では2カラム、小画面では縦並び */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 左カラム */}
@@ -169,12 +226,13 @@ function App() {
 
       {/* 下部セクション（全幅） */}
       <div className="mt-6 space-y-6">
-        {/* 2. CosmicWatch接続 */}
+        {/* 2. CosmicWatch接続 (デモモード中は無効化) */}
         <SerialConnection
           onDataReceived={handleDataReceived}
           onClearData={handleClearData}
           onConnectSuccess={handleConnectSuccess}
           onDisconnect={handleDisconnect}
+          isDemoMode={isDemoMode}
         />
         {/* 4. 測定データテーブル */}
         <div className="p-6 bg-white rounded-lg shadow-md">
