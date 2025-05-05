@@ -24,6 +24,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",
+    "@primer/octicons-react": "^19.15.1",
     "@tailwindcss/vite": "^4.1.4",
     "@tanstack/react-table": "^8.21.3",
     "@tauri-apps/api": "^2.5.0",

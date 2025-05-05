@@ -14,6 +14,7 @@ import {
   StopIcon,
 } from "@heroicons/react/24/solid";
 import { TableCellsIcon, CodeBracketIcon } from "@heroicons/react/24/outline";
+import { MarkGithubIcon } from "@primer/octicons-react";
 
 // データ関連の状態をグループ化する型
 interface MeasurementData {
@@ -186,7 +187,7 @@ function App() {
   return (
     <Layout>
       {/* アプリ右上へのデモモードボタン */}
-      <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
+      <div className="absolute top-4 right-4 flex items-center space-x-3 z-10">
         {isDemoMode && (
           <span className="text-red-600 font-bold text-sm bg-white px-2 py-1 rounded shadow">
             デモモード中
@@ -208,6 +209,15 @@ function App() {
           )}
           <span>{isDemoMode ? "停止" : "デモ"}</span>
         </button>
+        <a
+          href="https://github.com/nagi-hobbies/cosmicwatch-app"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="GitHubリポジトリを開く"
+          className="text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <MarkGithubIcon size={20} />
+        </a>
       </div>
 
       {/* ブラウザ版専用の注意事項カード */}
