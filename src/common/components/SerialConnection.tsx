@@ -1,6 +1,14 @@
 import { useCallback } from "react";
 import { useSerialPort } from "../hooks/useSerialPort";
 import { SectionTitle } from "./Layout";
+import {
+  CpuChipIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ArrowPathIcon,
+  BoltIcon,
+  BoltSlashIcon,
+} from "@heroicons/react/24/solid";
 
 interface SerialConnectionProps {
   onDataReceived: (data: string) => void;
@@ -43,65 +51,94 @@ export const SerialConnection = ({
     onDisconnect();
   }, [disconnect, onDisconnect]);
 
-  // 接続ステータステキストを決定
-  const getStatusText = () => {
-    if (isConnecting) return "接続中...";
-    if (isDisconnecting) return "切断中...";
-    return isConnected ? "接続済み" : "未接続";
+  // 接続ステータステキストとアイコンを決定
+  const getStatusDisplay = () => {
+    if (isConnecting)
+      return {
+        text: "接続中...",
+        icon: ArrowPathIcon,
+        color: "text-yellow-600",
+        spin: true,
+      };
+    if (isDisconnecting)
+      return {
+        text: "切断中...",
+        icon: ArrowPathIcon,
+        color: "text-yellow-600",
+        spin: true,
+      };
+    if (isConnected)
+      return {
+        text: "接続済み",
+        icon: CheckCircleIcon,
+        color: "text-green-600",
+        spin: false,
+      };
+    return {
+      text: "未接続",
+      icon: XCircleIcon,
+      color: "text-gray-500",
+      spin: false,
+    };
   };
 
-  // ステータス表示の色を決定
-  const getStatusColor = () => {
-    if (isConnecting || isDisconnecting) return "bg-yellow-500 animate-pulse";
-    return isConnected ? "bg-green-500 animate-pulse" : "bg-gray-400";
-  };
+  const statusDisplay = getStatusDisplay();
+  const StatusIcon = statusDisplay.icon;
 
-  // ボタンの状態を決定
+  // ボタンの状態とアイコンを決定
   const getButtonProps = () => {
     if (isConnected) {
       return {
         onClick: handleDisconnect,
         disabled: isDisconnecting,
-        className: `px-4 py-2 rounded-md font-medium text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+        className: `flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${
           isDisconnecting
             ? "bg-gray-400 text-gray-200 cursor-not-allowed"
             : "bg-red-500 hover:bg-red-600 text-white focus:ring-red-500"
         }`,
         text: isDisconnecting ? "切断中..." : "切断",
+        icon: BoltSlashIcon,
+        title: "",
       };
     } else {
       const isDisabled = isConnecting || isDemoMode;
       return {
         onClick: handleConnect,
         disabled: isDisabled,
-        className: `px-4 py-2 rounded-md font-medium text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+        className: `flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${
           isDisabled
             ? "bg-gray-400 text-gray-200 cursor-not-allowed"
             : "bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-600"
         }`,
         text: isConnecting ? "接続中..." : "接続",
-        title: isDemoMode ? "デモモード中は接続できません" : "",
+        icon: BoltIcon,
+        title: isDemoMode
+          ? "デモモード中は接続できません"
+          : "CosmicWatchに接続",
       };
     }
   };
 
   const buttonProps = getButtonProps();
+  const ButtonIcon = buttonProps.icon;
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
-      <SectionTitle>CosmicWatchと接続</SectionTitle>
-      <div className="flex items-center justify-between gap-4">
+      <SectionTitle>
+        <div className="flex items-center">
+          <CpuChipIcon className="h-6 w-6 mr-2 text-gray-600" />
+          CosmicWatchと接続
+        </div>
+      </SectionTitle>
+      <div className="flex items-center justify-between gap-4 mt-4">
         <div className="flex items-center text-sm">
-          <span
-            className={`mr-2 h-3 w-3 rounded-full ${getStatusColor()}`}
-          ></span>
-          <span className="font-medium text-gray-600">状態:</span>
-          <span
-            className={`ml-1.5 font-semibold ${
-              isConnected ? "text-green-700" : "text-gray-600"
+          <StatusIcon
+            className={`h-5 w-5 mr-1 ${statusDisplay.color} ${
+              statusDisplay.spin ? "animate-spin" : ""
             }`}
-          >
-            {getStatusText()}
+          />
+          <span className={`font-semibold ${statusDisplay.color}`}>
+            {statusDisplay.text}
           </span>
           {isConnected && portInfo && (
             <span className="ml-3 text-xs text-gray-500">
@@ -117,6 +154,7 @@ export const SerialConnection = ({
           className={buttonProps.className}
           title={buttonProps.title}
         >
+          <ButtonIcon className="h-5 w-5 mr-1" />
           {buttonProps.text}
         </button>
       </div>
