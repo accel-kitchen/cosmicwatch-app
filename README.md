@@ -1,6 +1,9 @@
 # CosmicWatch Recorder
 
-CosmicWatch Recorderは、CosmicWatchからのデータを記録、表示、解析するためのアプリケーションです。シリアル接続を通じてリアルタイムでデータを取得し、可視化や保存を行います。
+CosmicWatch Recorderは、CosmicWatchからのデータ -> datファイルへの変換をメインの機能に、簡単なデータの表示や解析を行うアプリケーションです。PCにCosmicWatchを接続し、[URL](https://cosmicwatch-app.pages.dev/)にアクセスするだけで、データの記録が可能です。
+
+
+Google Chrome や Microsoft Edge ブラウザの標準機能を利用することで、アプリやドライバのインストールの必要なく、CosmicWatchとシリアル通信が可能になりました。
 
 ---
 
@@ -85,6 +88,7 @@ cosmicwatch_app/
 
 ### シリアル通信
 
+- Chrome/EdgeのWebSerial APIでシリアル通信を行う
 - CosmicWatchからのシリアル通信の形式
   - 始めの数行は `#` で始まるコメント行、その後にデータ行が続く
   - データ行の形式は、`\t` 区切りで、1イベントのイベント番号、イベント時間、adc値、sipm値、温度などとなっている

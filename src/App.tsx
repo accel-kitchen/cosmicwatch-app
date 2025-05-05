@@ -8,6 +8,12 @@ import { FileControls } from "./common/components/FileControls";
 import { checkIsDesktop } from "./common/utils/platform";
 import { ADCHistogram } from "./common/components/PlotlyADCHistogram";
 import { generateDemoData, resetDemoDataState } from "./common/utils/demoData";
+import {
+  ExclamationTriangleIcon,
+  PlayIcon,
+  StopIcon,
+} from "@heroicons/react/24/solid";
+import { TableCellsIcon, CodeBracketIcon } from "@heroicons/react/24/outline";
 
 // データ関連の状態をグループ化する型
 interface MeasurementData {
@@ -187,16 +193,51 @@ function App() {
           </span>
         )}
         <button
-          className={`px-3 py-2 rounded-md text-sm ${
+          className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm ${
             isDemoMode
               ? "bg-red-500 hover:bg-red-600"
               : "bg-green-500 hover:bg-green-600"
           } text-white shadow`}
           onClick={isDemoMode ? stopDemoMode : startDemoMode}
+          title={isDemoMode ? "デモモードを停止" : "デモモードを開始"}
         >
-          {isDemoMode ? "停止" : "デモ モード"}
+          {isDemoMode ? (
+            <StopIcon className="h-4 w-4" />
+          ) : (
+            <PlayIcon className="h-4 w-4" />
+          )}
+          <span>{isDemoMode ? "停止" : "デモ"}</span>
         </button>
       </div>
+
+      {/* ブラウザ版専用の注意事項カード */}
+      {!isDesktop && (
+        <div className="mb-6 border-l-4 border-yellow-400 bg-yellow-50 p-4 rounded-r-md shadow">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <ExclamationTriangleIcon
+                className="h-5 w-5 text-yellow-400"
+                aria-hidden="true"
+              />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-yellow-800">
+                ブラウザ版ご利用上の注意
+              </p>
+              <div className="mt-2 text-sm text-yellow-700">
+                <ul role="list" className="list-disc space-y-1 pl-5">
+                  <li>
+                    Google Chrome または Microsoft Edge でのみ動作します。
+                  </li>
+                  <li>
+                    測定データをダウンロードせずにブラウザを閉じると、データは保存されません。
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* レスポンシブレイアウト - 大画面では2カラム、小画面では縦並び */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -236,7 +277,12 @@ function App() {
         />
         {/* 4. 測定データテーブル */}
         <div className="p-6 bg-white rounded-lg shadow-md">
-          <SectionTitle>測定データ</SectionTitle>
+          <SectionTitle>
+            <div className="flex items-center">
+              <TableCellsIcon className="h-6 w-6 mr-2 text-gray-600" />
+              測定データ
+            </div>
+          </SectionTitle>
           <div className="bg-white rounded-lg overflow-hidden max-h-80 overflow-y-auto">
             {data.parsed.length > 0 ? (
               <DataTable data={data.parsed} />
@@ -250,7 +296,12 @@ function App() {
 
         {/* 5. 生データ表示 */}
         <div className="p-6 bg-white rounded-lg shadow-md">
-          <SectionTitle>生データ</SectionTitle>
+          <SectionTitle>
+            <div className="flex items-center">
+              <CodeBracketIcon className="h-6 w-6 mr-2 text-gray-600" />
+              生データ
+            </div>
+          </SectionTitle>
           <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg overflow-auto max-h-80 text-sm font-mono">
             {data.raw.slice(-100).join("\n")}
           </pre>

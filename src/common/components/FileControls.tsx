@@ -5,6 +5,15 @@ import {
 } from "../utils/formatters";
 import { SectionTitle, SectionHeader } from "./Layout";
 import { useAutoSave } from "../hooks/useAutoSave";
+import {
+  DocumentTextIcon,
+  ArrowDownTrayIcon,
+  Cog6ToothIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  FolderOpenIcon,
+} from "@heroicons/react/24/outline";
+import { Switch } from "@headlessui/react";
 
 interface FileControlsProps {
   rawData: string[];
@@ -33,14 +42,18 @@ const CommentSection = ({
   <div>
     <SectionHeader>
       <div className="flex items-center">
-        <input
-          type="checkbox"
+        <Switch
           id="includeComments"
           checked={includeComments}
-          onChange={(e) => setIncludeComments(e.target.checked)}
-          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2 cursor-pointer"
-        />
-        <label htmlFor="includeComments" className="select-none cursor-pointer">
+          onChange={() => setIncludeComments(!includeComments)}
+          className="group inline-flex h-6 w-11 items-center rounded-full bg-gray-200 transition data-checked:bg-blue-600 cursor-pointer"
+        >
+          <span className="size-4 translate-x-1 rounded-full bg-white transition group-data-checked:translate-x-6" />
+        </Switch>
+        <label
+          htmlFor="includeComments"
+          className="select-none cursor-pointer ml-2"
+        >
           コメントを含める
         </label>
       </div>
@@ -74,7 +87,12 @@ const FilenameSection = ({
   setSuffix: (suffix: string) => void;
 }) => (
   <div className="pt-4 border-t border-gray-200">
-    <SectionHeader>ファイル名設定</SectionHeader>
+    <SectionHeader>
+      <div className="flex items-center">
+        <Cog6ToothIcon className="h-5 w-5 mr-1 text-gray-500" />
+        ファイル名設定
+      </div>
+    </SectionHeader>
     <div>
       <label
         htmlFor="filenameSuffix"
@@ -114,6 +132,11 @@ const AutoSaveSection = ({
   <div className="pt-4 border-t border-gray-200">
     <SectionHeader>
       <div className="flex items-center">
+        {isEnabled ? (
+          <CheckCircleIcon className="h-5 w-5 mr-1 text-green-500" />
+        ) : (
+          <XCircleIcon className="h-5 w-5 mr-1 text-gray-400" />
+        )}
         <input
           id="autoSave"
           type="checkbox"
@@ -157,6 +180,7 @@ const AutoSaveSection = ({
           }`}
           disabled={!isEnabled}
         >
+          <FolderOpenIcon className="h-4 w-4 mr-1" />
           変更
         </button>
       </div>
@@ -262,7 +286,12 @@ export const FileControls = ({
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
-      <SectionTitle>データファイル設定</SectionTitle>
+      <SectionTitle>
+        <div className="flex items-center">
+          <DocumentTextIcon className="h-6 w-6 mr-2 text-gray-600" />
+          ファイル設定
+        </div>
+      </SectionTitle>
 
       <div className="space-y-6">
         <CommentSection
@@ -281,8 +310,9 @@ export const FileControls = ({
           <button
             onClick={handleDownload}
             disabled={rawData.length === 0 || !measurementStartTime}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+            className="w-full flex items-center justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
           >
+            <ArrowDownTrayIcon className="h-5 w-5 mr-1" />
             データをダウンロード (.dat)
           </button>
           <p className="text-xs text-gray-500 mt-1 text-center">

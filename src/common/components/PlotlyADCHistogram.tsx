@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { CosmicWatchData } from "../../shared/types";
 import { SectionTitle } from "./Layout";
 import Plot from "react-plotly.js";
+import { ChartBarIcon } from "@heroicons/react/24/outline";
 
 interface PlotlyADCHistogramProps {
   data: CosmicWatchData[];
@@ -139,7 +140,12 @@ export const ADCHistogram = ({
   if (displayData.length === 0) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-md">
-        <SectionTitle>データ解析</SectionTitle>
+        <SectionTitle>
+          <div className="flex items-center">
+            <ChartBarIcon className="h-6 w-6 mr-2 text-gray-600" />
+            データ解析
+          </div>
+        </SectionTitle>
         <div className="p-6 text-gray-500 text-center flex items-center justify-center h-40">
           データ受信待ち...
         </div>
@@ -225,28 +231,34 @@ export const ADCHistogram = ({
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
-      <SectionTitle>データ解析</SectionTitle>
-
-      <div className="flex items-center space-x-2">
-        <label htmlFor="updateInterval" className="text-sm text-gray-600">
-          データ更新間隔:
-        </label>
-        <select
-          id="updateInterval"
-          value={updateInterval}
-          onChange={handleIntervalChange}
-          className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="1">1秒</option>
-          <option value="10">10秒</option>
-          <option value="60">1分</option>
-          <option value="300">5分</option>
-          <option value="600">10分</option>
-        </select>
+      <SectionTitle>
+        <div className="flex items-center">
+          <ChartBarIcon className="h-6 w-6 mr-2 text-gray-600" />
+          データ解析
+        </div>
+      </SectionTitle>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center space-x-2">
+          <label htmlFor="updateInterval" className="text-sm text-gray-600">
+            データ更新間隔:
+          </label>
+          <select
+            id="updateInterval"
+            value={updateInterval}
+            onChange={handleIntervalChange}
+            className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="1">1秒</option>
+            <option value="10">10秒</option>
+            <option value="60">1分</option>
+            <option value="300">5分</option>
+            <option value="600">10分</option>
+          </select>
+        </div>
+        <span className="text-xs text-gray-500">
+          (長時間計測する場合は更新間隔を長くしてください)
+        </span>
       </div>
-      <span className="text-xs text-gray-500">
-        (長時間計測する場合は更新間隔を長くしてください)
-      </span>
       <div className="mt-2 text-xs text-gray-500">
         全{data.length}件のデータ（
         {displayData.length === data.length
@@ -256,24 +268,34 @@ export const ADCHistogram = ({
       </div>
       {stats && (
         <div className="mb-4 grid grid-cols-3 md:grid-cols-5 gap-2 text-center text-sm">
-          <div className="bg-red-50 p-2 rounded">
-            <div className="font-semibold text-red-800">総シグナル数</div>
+          <div className="bg-blue-50 p-2 rounded">
+            <div className="font-semibold text-blue-800 flex items-center justify-center">
+              総信号数
+            </div>
             <div>{stats.count}</div>
           </div>
-          <div className="bg-yellow-50 p-2 rounded">
-            <div className="font-semibold text-yellow-800">カウントレート</div>
+          <div className="bg-green-50 p-2 rounded">
+            <div className="font-semibold text-green-800 flex items-center justify-center">
+              レート
+            </div>
             <div>{stats.countRate} 回/s</div>
           </div>
-          <div className="bg-green-50 p-2 rounded">
-            <div className="font-semibold text-green-800">平均</div>
+          <div className="bg-purple-50 p-2 rounded">
+            <div className="font-semibold text-purple-800 flex items-center justify-center">
+              平均ADC
+            </div>
             <div>{stats.mean}</div>
           </div>
-          <div className="bg-blue-50 p-2 rounded">
-            <div className="font-semibold text-blue-800">最小値</div>
+          <div className="bg-amber-50 p-2 rounded">
+            <div className="font-semibold text-amber-800 flex items-center justify-center">
+              最小ADC
+            </div>
             <div>{stats.min}</div>
           </div>
-          <div className="bg-purple-50 p-2 rounded">
-            <div className="font-semibold text-purple-800">最大値</div>
+          <div className="bg-red-50 p-2 rounded">
+            <div className="font-semibold text-red-800 flex items-center justify-center">
+              最大ADC
+            </div>
             <div>{stats.max}</div>
           </div>
         </div>
