@@ -12,6 +12,7 @@ import {
   ExclamationTriangleIcon,
   PlayIcon,
   StopIcon,
+  LightBulbIcon,
 } from "@heroicons/react/24/solid";
 import { TableCellsIcon, CodeBracketIcon } from "@heroicons/react/24/outline";
 import { MarkGithubIcon } from "@primer/octicons-react";
@@ -222,27 +223,68 @@ function App() {
 
       {/* ブラウザ版専用の注意事項カード */}
       {!isDesktop && (
-        <div className="mb-6 border-l-4 border-yellow-400 bg-yellow-50 p-4 rounded-r-md shadow">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <ExclamationTriangleIcon
-                className="h-5 w-5 text-yellow-400"
-                aria-hidden="true"
-              />
+        <div className="mb-6 border-l-4 border-blue-400 bg-blue-50 p-4 rounded-r-md shadow">
+          <div className="space-y-3">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <ExclamationTriangleIcon
+                  className="h-5 w-5 text-yellow-400"
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  Google Chrome, Microsoft Edge等に対応、Safariは非対応です。
+                </p>
+              </div>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-yellow-800">
-                ブラウザ版ご利用上の注意
-              </p>
-              <div className="mt-2 text-sm text-yellow-700">
-                <ul role="list" className="list-disc space-y-1 pl-5">
-                  <li>
-                    Google Chrome または Microsoft Edge でのみ動作します。
-                  </li>
-                  <li>
-                    測定データをダウンロードせずにブラウザを閉じると、データは保存されません。
-                  </li>
-                </ul>
+
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <ExclamationTriangleIcon
+                  className="h-5 w-5 text-yellow-400"
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  測定データをダウンロードせずにブラウザを閉じると、データは保存されません。
+                </p>
+              </div>
+            </div>
+
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <LightBulbIcon
+                  className="h-5 w-5 text-blue-500"
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-700">
+                  ブラウザのタブを複数開くと、複数のCosmicWatchと接続/データの記録ができます。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* デスクトップ版のヒント */}
+      {isDesktop && (
+        <div className="mb-6 border-l-4 border-blue-400 bg-blue-50 p-4 rounded-r-md shadow">
+          <div className="space-y-3">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <LightBulbIcon
+                  className="h-5 w-5 text-blue-500"
+                  aria-hidden="true"
+                />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-700">
+                  アプリを複数開くと、複数のCosmicWatchと接続/データの記録ができます。
+                </p>
               </div>
             </div>
           </div>
