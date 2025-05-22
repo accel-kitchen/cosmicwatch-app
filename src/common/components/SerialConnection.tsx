@@ -31,8 +31,10 @@ export const SerialConnection = ({
     isDisconnecting,
     error,
     portInfo,
+    hasLastConnectedPort,
     connect,
     disconnect,
+    reconnect,
   } = useSerialPort(onDataReceived);
 
   const handleConnect = useCallback(async () => {
@@ -50,6 +52,17 @@ export const SerialConnection = ({
     await disconnect();
     onDisconnect();
   }, [disconnect, onDisconnect]);
+
+  const handleReconnect = useCallback(async () => {
+    if (isDemoMode) return;
+    onClearData();
+    try {
+      await reconnect();
+      onConnectSuccess();
+    } catch (error) {
+      console.error("Reconnection failed in component:", error);
+    }
+  }, [reconnect, onClearData, onConnectSuccess, isDemoMode]);
 
   // 接続ステータステキストとアイコンを決定
   const getStatusDisplay = () => {
@@ -119,8 +132,33 @@ export const SerialConnection = ({
     }
   };
 
+  // 再接続ボタンの状態とアイコンを決定
+  const getReconnectButtonProps = () => {
+    // 未接続かつ前回接続したポートがある場合のみ表示
+    if (!isConnected && hasLastConnectedPort) {
+      const isDisabled = isConnecting || isDemoMode;
+      return {
+        onClick: handleReconnect,
+        disabled: isDisabled,
+        className: `flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+          isDisabled
+            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+            : "bg-green-600 hover:bg-green-700 text-white focus:ring-green-600"
+        }`,
+        text: isConnecting ? "接続中..." : "再接続",
+        icon: ArrowPathIcon,
+        title: isDemoMode
+          ? "デモモード中は再接続できません"
+          : "前回のCosmicWatchに再接続",
+      };
+    }
+    return null;
+  };
+
   const buttonProps = getButtonProps();
   const ButtonIcon = buttonProps.icon;
+
+  const reconnectButtonProps = getReconnectButtonProps();
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
@@ -148,15 +186,30 @@ export const SerialConnection = ({
           )}
         </div>
 
-        <button
-          onClick={buttonProps.onClick}
-          disabled={buttonProps.disabled}
-          className={buttonProps.className}
-          title={buttonProps.title}
-        >
-          <ButtonIcon className="h-5 w-5 mr-1" />
-          {buttonProps.text}
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={buttonProps.onClick}
+            disabled={buttonProps.disabled}
+            className={buttonProps.className}
+            title={buttonProps.title}
+          >
+            <ButtonIcon className="h-5 w-5 mr-1" />
+            {buttonProps.text}
+          </button>
+
+          {/* 再接続ボタン */}
+          {reconnectButtonProps && (
+            <button
+              onClick={reconnectButtonProps.onClick}
+              disabled={reconnectButtonProps.disabled}
+              className={reconnectButtonProps.className}
+              title={reconnectButtonProps.title}
+            >
+              <reconnectButtonProps.icon className="h-5 w-5 mr-1" />
+              {reconnectButtonProps.text}
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (

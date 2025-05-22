@@ -29,6 +29,7 @@ interface SerialPortStatus extends SerialPortState {
   portInfo: PortInfo | null;
   connecting: boolean;
   disconnecting: boolean;
+  lastConnectedPort: SerialPort | null; // 最後に接続したポートを追跡
 }
 
 /**
@@ -45,6 +46,7 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
     portInfo: null,
     connecting: false,
     disconnecting: false,
+    lastConnectedPort: null,
   });
 
   // クリーンアップフラグ参照
@@ -98,6 +100,7 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
         portInfo,
         connecting: false,
         disconnecting: false,
+        lastConnectedPort: port, // 最後に接続したポートを保存
       });
 
       log("データ読み取りループを開始...");
@@ -112,6 +115,70 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
       }));
     }
   }, [status.isConnected, status.connecting]);
+
+  /**
+   * 最後に接続したポートに再接続する
+   */
+  const reconnect = useCallback(async () => {
+    // 既に接続中、接続処理中、または最後に接続したポートがない場合は何もしない
+    if (status.isConnected || status.connecting || !status.lastConnectedPort) {
+      log("再接続できません: 既に接続中か、前回の接続情報がありません");
+      return;
+    }
+
+    setStatus((prev) => ({ ...prev, connecting: true, error: null }));
+    cleanupRef.current = false;
+
+    try {
+      log("前回接続したポートに再接続しています...");
+      const port = status.lastConnectedPort;
+      const portInfo = port.getInfo();
+
+      // ポートが閉じている場合のみ開く
+      if (!port.readable || !port.writable) {
+        log("ポートを開いています...", DEFAULT_SERIAL_OPTIONS);
+        await port.open(DEFAULT_SERIAL_OPTIONS);
+        log("ポートが正常に開かれました");
+
+        // シリアルポートの初期化待機
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      if (!port.readable || !port.writable) {
+        throw new Error("ポートの読み取り/書き込みストリームが利用できません");
+      }
+
+      const textDecoder = new TextDecoder();
+      const reader = port.readable.getReader();
+      const writer = port.writable.getWriter();
+      log("リーダーとライターを作成しました");
+
+      setStatus({
+        port,
+        reader,
+        writer,
+        isConnected: true,
+        error: null,
+        portInfo,
+        connecting: false,
+        disconnecting: false,
+        lastConnectedPort: port,
+      });
+
+      log("データ読み取りループを開始...");
+      readLoop(reader, textDecoder);
+    } catch (error) {
+      log("再接続エラー:", error);
+      setStatus((prev) => ({
+        ...prev,
+        error:
+          error instanceof Error
+            ? error.message
+            : "再接続中に不明なエラーが発生しました",
+        connecting: false,
+      }));
+    }
+  }, [status.isConnected, status.connecting, status.lastConnectedPort]);
 
   /**
    * データ読み取りループ
@@ -255,17 +322,18 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
     } catch (error) {
       log("切断中にエラーが発生:", error);
     } finally {
-      // 接続状態をリセット
-      setStatus({
+      // 接続状態をリセット（ただし最後に接続したポートの情報は保持）
+      setStatus((prev) => ({
         port: null,
         reader: null,
         writer: null,
         isConnected: false,
         error: null,
-        portInfo: null,
+        portInfo: prev.portInfo, // ポート情報は保持
         connecting: false,
         disconnecting: false,
-      });
+        lastConnectedPort: prev.lastConnectedPort, // 最後に接続したポートを保持
+      }));
     }
   }, [
     status.isConnected,
@@ -292,7 +360,9 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
     isDisconnecting: status.disconnecting,
     error: status.error,
     portInfo: status.portInfo,
+    hasLastConnectedPort: !!status.lastConnectedPort,
     connect,
     disconnect,
+    reconnect,
   };
 };
