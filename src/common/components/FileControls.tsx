@@ -180,8 +180,10 @@ const AutoSaveSection = ({
           }`}
           disabled={!isEnabled}
         >
-          <FolderOpenIcon className="h-4 w-4 mr-1" />
-          変更
+          <div className="flex items-center">
+            <FolderOpenIcon className="h-4 w-4 mr-1" />
+            変更
+          </div>
         </button>
       </div>
     </div>
@@ -267,7 +269,15 @@ export const FileControls = ({
       (line) => includeComments || !line.trim().startsWith("#")
     );
 
-    content += filteredData.join("\n");
+    // 行間の区切りはそのままに、複数の空白をタブに変換
+    const tabSeparatedData = filteredData.map((line) => {
+      // 既にタブ文字が含まれている場合はそのまま
+      if (line.includes("\t")) return line;
+      // 複数の連続した空白をタブに変換
+      return line.replace(/\s+/g, "\t");
+    });
+
+    content += tabSeparatedData.join("\n");
 
     const startTimestamp = formatDateForFilename(measurementStartTime);
     const endTimestamp = formatDateForFilename(endTime);

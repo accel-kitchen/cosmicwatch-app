@@ -114,7 +114,15 @@ export function useAutoSave({
     ) {
       const appendData = async () => {
         try {
-          await writeTextFile(currentFilePath, latestRawData + "\n", {
+          // データ行をタブ区切りに変換
+          let dataToWrite = latestRawData;
+
+          // 既にタブ文字が含まれていない場合は変換
+          if (dataToWrite && !dataToWrite.includes("\t")) {
+            dataToWrite = dataToWrite.replace(/\s+/g, "\t");
+          }
+
+          await writeTextFile(currentFilePath, dataToWrite + "\n", {
             append: true,
           });
         } catch (error) {
