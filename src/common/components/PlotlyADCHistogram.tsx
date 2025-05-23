@@ -6,138 +6,54 @@ import { ChartBarIcon } from "@heroicons/react/24/outline";
 
 interface PlotlyADCHistogramProps {
   data: CosmicWatchData[];
-  binCount?: number;
-  startTime: Date | null; // 測定開始時間を追加
+  startTime: Date | null;
 }
 
 export const ADCHistogram = ({
   data,
-  binCount = 25,
   startTime,
 }: PlotlyADCHistogramProps) => {
-  // 表示用データの状態
-  const [displayData, setDisplayData] = useState<CosmicWatchData[]>([]);
-  // 更新間隔（秒）
-  const [updateInterval, setUpdateInterval] = useState<number>(10);
-  // 最終更新時刻
-  const lastUpdateRef = useRef<number>(Date.now());
-  // 更新タイマー
+  const [samples, setSamples] = useState<CosmicWatchData[]>([]);
+  const lastRef = useRef<number>(Date.now());
   const timerRef = useRef<number | null>(null);
-  // ズーム状態を保持
-  const [zoomState, setZoomState] = useState<any>(null);
+  const [updateInterval, setUpdateInterval] = useState<number>(10); // 秒単位
 
-  // データが来たら一定間隔で更新する
+  // 更新周期は選択可能
   useEffect(() => {
-    // タイマーをクリア
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-
-    // 今すぐ更新するかチェック
+    if (timerRef.current) clearTimeout(timerRef.current);
     const now = Date.now();
-    const timeSinceLastUpdate = now - lastUpdateRef.current;
-
-    if (timeSinceLastUpdate >= updateInterval * 1000) {
-      // 更新間隔を超えていれば即時更新
-      setDisplayData([...data]);
-      lastUpdateRef.current = now;
-    } else {
-      // 更新間隔に達していなければタイマーをセット
-      const remainingTime = updateInterval * 1000 - timeSinceLastUpdate;
-      timerRef.current = window.setTimeout(() => {
-        setDisplayData([...data]);
-        lastUpdateRef.current = Date.now();
-      }, remainingTime);
+    const intervalMs = updateInterval * 1000;
+    if (now - lastRef.current >= intervalMs) {
+      setSamples(data);
+      lastRef.current = now;
     }
-
-    // クリーンアップ
+    timerRef.current = window.setTimeout(() => {
+      setSamples(data);
+      lastRef.current = Date.now();
+    }, intervalMs);
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [data, updateInterval]);
 
-  // ADC値のヒストグラムデータを計算
-  const histogramData = useMemo(() => {
-    if (displayData.length === 0) return [];
+  const adcVals = useMemo(() => samples.map((d) => d.adc), [samples]);
+  // 秒単位に変換
+  const timeVals = useMemo(
+    () => samples.map((d) => (d.time ?? d.totaltime ?? 0) / 1000),
+    [samples]
+  );
 
-    // データからADC値を抽出
-    return displayData.map((item) => item.adc);
-  }, [displayData]);
+  const [adcBinSize, setAdcBinSize] = useState(1023 / 25);
+  const [timeBinSize, setTimeBinSize] = useState(1); // 秒単位
 
-  // 統計情報を計算
-  const stats = useMemo(() => {
-    if (histogramData.length === 0) return null;
+  const layoutCommon = {
+    autosize: true,
+    paper_bgcolor: "#fff",
+    plot_bgcolor: "#f8fafc",
+    margin: { t: 30, r: 20, l: 50, b: 50 },
+  } as any;
 
-    const sum = histogramData.reduce((a, b) => a + b, 0);
-    const mean = sum / histogramData.length;
-
-    const squaredDiffs = histogramData.map((value) =>
-      Math.pow(value - mean, 2)
-    );
-    const variance =
-      squaredDiffs.reduce((a, b) => a + b, 0) / histogramData.length;
-    const stdDev = Math.sqrt(variance);
-
-    const sortedData = [...histogramData].sort((a, b) => a - b);
-    const median =
-      sortedData.length % 2 === 0
-        ? (sortedData[sortedData.length / 2 - 1] +
-            sortedData[sortedData.length / 2]) /
-          2
-        : sortedData[Math.floor(sortedData.length / 2)];
-
-    // カウントレートを計算（件/秒）
-    let countRate = 0;
-    if (startTime) {
-      const elapsedSeconds = (Date.now() - startTime.getTime()) / 1000;
-      countRate =
-        elapsedSeconds > 0 ? histogramData.length / elapsedSeconds : 0;
-    }
-
-    return {
-      count: histogramData.length,
-      mean: mean.toFixed(2),
-      median: median.toFixed(2),
-      stdDev: stdDev.toFixed(2),
-      min: Math.min(...histogramData),
-      max: Math.max(...histogramData),
-      countRate: countRate.toFixed(4),
-    };
-  }, [histogramData, startTime]);
-
-  // 更新間隔の変更ハンドラ
-  const handleIntervalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setUpdateInterval(Number(e.target.value));
-  };
-
-  // グラフのズーム状態が変更されたときのハンドラ
-  const handleRelayout = (event: any) => {
-    // xaxis.range または yaxis.range が含まれている場合はズーム状態を保存
-    if (
-      (event["xaxis.range[0]"] !== undefined &&
-        event["xaxis.range[1]"] !== undefined) ||
-      (event["yaxis.range[0]"] !== undefined &&
-        event["yaxis.range[1]"] !== undefined)
-    ) {
-      setZoomState({
-        "xaxis.range[0]": event["xaxis.range[0]"],
-        "xaxis.range[1]": event["xaxis.range[1]"],
-        "yaxis.range[0]": event["yaxis.range[0]"],
-        "yaxis.range[1]": event["yaxis.range[1]"],
-      });
-    } else if (
-      event.autosize ||
-      event["xaxis.autorange"] ||
-      event["yaxis.autorange"]
-    ) {
-      // リセットされた場合
-      setZoomState(null);
-    }
-  };
-
-  if (displayData.length === 0) {
+  if (!samples.length) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-md">
         <SectionTitle>
@@ -146,207 +62,110 @@ export const ADCHistogram = ({
             データ解析
           </div>
         </SectionTitle>
-        <div className="p-6 text-gray-500 text-center flex items-center justify-center h-40">
+        <div className="p-6 text-gray-500 text-center h-40 flex items-center justify-center">
           データ受信待ち...
         </div>
       </div>
     );
   }
 
-  // レイアウト設定を作成（ズーム状態を反映）
-  const layoutConfig: any = {
-    width: undefined,
-    height: 400,
-    autosize: true,
-    margin: { t: 30, r: 30, l: 50, b: 60 },
-    paper_bgcolor: "#fff",
-    plot_bgcolor: "#f8fafc",
-    xaxis: {
-      title: {
-        text: "ADC",
-        font: {
-          size: 14,
-          color: "#555",
-        },
-      },
-      gridcolor: "#e2e8f0",
-      tickangle: -45,
-      tickfont: { size: 12 },
-    },
-    yaxis: {
-      title: {
-        text: "Count",
-        font: {
-          size: 14,
-          color: "#555",
-        },
-      },
-      gridcolor: "#e2e8f0",
-      tickfont: { size: 12 },
-    },
-    bargap: 0.02,
-    shapes: [
-      {
-        type: "line",
-        x0: stats ? stats.mean : 0,
-        y0: 0,
-        x1: stats ? stats.mean : 0,
-        y1: 1,
-        yref: "paper",
-        line: {
-          color: "rgba(255, 0, 0, 0.7)",
-          width: 2,
-          dash: "dash",
-        },
-      },
-    ],
-    annotations: [
-      {
-        x: stats ? stats.mean : 0,
-        y: 1,
-        yref: "paper",
-        text: "平均値",
-        showarrow: true,
-        arrowhead: 2,
-        ax: 40,
-        ay: -20,
-        font: {
-          color: "rgba(255, 0, 0, 0.8)",
-        },
-      },
-    ],
-  };
-
-  // ズーム状態があれば適用
-  if (zoomState) {
-    layoutConfig.xaxis.range = [
-      zoomState["xaxis.range[0]"],
-      zoomState["xaxis.range[1]"],
-    ];
-    layoutConfig.yaxis.range = [
-      zoomState["yaxis.range[0]"],
-      zoomState["yaxis.range[1]"],
-    ];
-  }
-
   return (
-    <div className="p-6 bg-white rounded-lg shadow-md">
+    <div className="flex-1 p-6 bg-white rounded-lg shadow-md space-y-6">
       <SectionTitle>
         <div className="flex items-center">
           <ChartBarIcon className="h-6 w-6 mr-2 text-gray-600" />
-          データ解析
+          ヒストグラム設定
         </div>
       </SectionTitle>
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center space-x-2">
-          <label htmlFor="updateInterval" className="text-sm text-gray-600">
-            データ更新間隔:
-          </label>
-          <select
-            id="updateInterval"
-            value={updateInterval}
-            onChange={handleIntervalChange}
-            className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="1">1秒</option>
-            <option value="10">10秒</option>
-            <option value="60">1分</option>
-            <option value="300">5分</option>
-            <option value="600">10分</option>
+      <div className="space-y-4">
+      <div className="flex items-center space-x-2 bg-white border border-gray-200 rounded px-3 py-2">
+        <label htmlFor="updateInterval" className="mr-2 text-sm text-gray-700">
+          更新間隔
+        </label>
+        <select
+          id="updateInterval"
+          value={updateInterval}
+          onChange={(e) => setUpdateInterval(Number(e.target.value))}
+          className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+        >
+            {[1, 10, 60, 300, 600].map((v) => (
+              <option key={v} value={v}>
+                {v === 1 ? "1秒" : v === 60 ? "1分" : `${v}秒`}
+              </option>
+            ))}
           </select>
         </div>
-        <span className="text-xs text-gray-500">
-          (長時間計測する場合は更新間隔を長くしてください)
-        </span>
-      </div>
-      <div className="mt-2 text-xs text-gray-500">
-        全{data.length}件のデータ（
-        {displayData.length === data.length
-          ? "全て表示中"
-          : `${displayData.length}件表示中`}
-        ）
-      </div>
-      {stats && (
-        <div className="mb-4 grid grid-cols-3 md:grid-cols-5 gap-2 text-center text-sm">
-          <div className="bg-blue-50 p-2 rounded">
-            <div className="font-semibold text-blue-800 flex items-center justify-center">
-              総信号数
-            </div>
-            <div>{stats.count}</div>
-          </div>
-          <div className="bg-green-50 p-2 rounded">
-            <div className="font-semibold text-green-800 flex items-center justify-center">
-              レート
-            </div>
-            <div>{stats.countRate} 回/s</div>
-          </div>
-          <div className="bg-purple-50 p-2 rounded">
-            <div className="font-semibold text-purple-800 flex items-center justify-center">
-              平均ADC
-            </div>
-            <div>{stats.mean}</div>
-          </div>
-          <div className="bg-amber-50 p-2 rounded">
-            <div className="font-semibold text-amber-800 flex items-center justify-center">
-              最小ADC
-            </div>
-            <div>{stats.min}</div>
-          </div>
-          <div className="bg-red-50 p-2 rounded">
-            <div className="font-semibold text-red-800 flex items-center justify-center">
-              最大ADC
-            </div>
-            <div>{stats.max}</div>
-          </div>
+        <div>
+          <label className="text-sm">ADC ビン幅: {adcBinSize.toFixed(0)}</label>
+          <input
+            type="range"
+            min="1"
+            max="200"
+            step="1"
+            value={adcBinSize}
+            onChange={(e) => setAdcBinSize(Number(e.target.value))}
+            className="w-full"
+          />
         </div>
-      )}
+        <div>
+          <label className="text-sm">時間ビン幅 (秒): {timeBinSize}</label>
+          <input
+            type="range"
+            min="1"
+            max="600"
+            step="1"
+            value={timeBinSize}
+            onChange={(e) => setTimeBinSize(Number(e.target.value))}
+            className="w-full"
+          />
+        </div>
+      </div>
 
-      <div className="mt-4">
+      {/* ADC ヒストグラム */}
+      <div>
         <Plot
+          revision={samples.length}
           data={[
             {
-              x: histogramData,
+              x: adcVals,
               type: "histogram",
               autobinx: false,
-              xbins: {
-                size:
-                  (Math.max(...histogramData) - Math.min(...histogramData)) /
-                  binCount,
-                start: Math.min(...histogramData),
-                end: Math.max(...histogramData),
-              },
-              marker: {
-                color: "rgba(75, 192, 192, 0.6)",
-                line: {
-                  color: "rgba(75, 192, 192, 1)",
-                  width: 1,
-                },
-              },
-              hoverlabel: {
-                bgcolor: "#FFF",
-                font: { color: "#333" },
-                bordercolor: "#999",
-              },
-              name: "ADC",
-              opacity: 0.85,
+              xbins: { start: 0, end: 1023, size: adcBinSize },
+              marker: { color: "rgba(75,192,192,0.6)", line: { width: 1 } },
             },
           ]}
-          layout={layoutConfig}
-          config={{
-            responsive: true,
-            displayModeBar: true,
-            displaylogo: false,
-            modeBarButtonsToRemove: ["lasso2d", "select2d"],
-            toImageButtonOptions: {
-              format: "png",
-              filename: "adc_histogram",
-              height: 500,
-              width: 700,
-              scale: 2,
-            },
+          layout={{
+            ...layoutCommon,
+            xaxis: { title: "ADC", gridcolor: "#e2e8f0" },
+            yaxis: { title: "Count", gridcolor: "#e2e8f0" },
+            title: { text: "ADC ヒストグラム" },
           }}
-          style={{ width: "100%", height: "100%" }}
-          onRelayout={handleRelayout}
+          config={{ responsive: true, displaylogo: false }}
+          style={{ width: "100%", height: 300 }}
+        />
+      </div>
+
+      {/* 時刻ヒストグラム */}
+      <div>
+          <Plot
+            revision={samples.length}
+            data={[
+              {
+                x: timeVals,
+                type: "histogram",
+                autobinx: false,
+              xbins: { start: 0, end: Math.max(...timeVals), size: timeBinSize },
+                marker: { color: "rgba(153,102,255,0.6)", line: { width: 1 } },
+              },
+            ]}
+            layout={{
+              ...layoutCommon,
+              xaxis: { title: "Time (s)", gridcolor: "#e2e8f0" },
+            yaxis: { title: "Count", gridcolor: "#e2e8f0" },
+            title: { text: "時刻ヒストグラム" },
+          }}
+          config={{ responsive: true, displaylogo: false }}
+          style={{ width: "100%", height: 300 }}
         />
       </div>
     </div>

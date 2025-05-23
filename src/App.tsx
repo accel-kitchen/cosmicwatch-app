@@ -292,9 +292,9 @@ function App() {
       )}
 
       {/* レスポンシブレイアウト - 大画面では2カラム、小画面では縦並び */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* 左カラム */}
-        <div className="space-y-6">
+        <div className="space-y-6 flex flex-col h-full">
           {/* 1. ファイル設定 */}
           <FileControls
             rawData={data.raw}
@@ -308,25 +308,27 @@ function App() {
             setFileHandle={handleAutoSavePathChange}
             latestRawData={latestRawData}
           />
+          {/* 2. CosmicWatch接続 */}
+          <SerialConnection
+            onDataReceived={handleDataReceived}
+            onClearData={handleClearData}
+            onConnectSuccess={handleConnectSuccess}
+            onDisconnect={handleDisconnect}
+            isDemoMode={isDemoMode}
+          />
         </div>
 
         {/* 右カラム */}
-        <div className="space-y-6">
+        <div className="space-y-6 flex flex-col">
           {/* 3. データ解析（ヒストグラム） */}
-          <ADCHistogram data={data.allParsed} startTime={data.startTime} />
+          <div className="flex-1">
+            <ADCHistogram data={data.allParsed} startTime={data.startTime} />
+          </div>
         </div>
       </div>
 
       {/* 下部セクション（全幅） */}
       <div className="mt-6 space-y-6">
-        {/* 2. CosmicWatch接続 (デモモード中は無効化) */}
-        <SerialConnection
-          onDataReceived={handleDataReceived}
-          onClearData={handleClearData}
-          onConnectSuccess={handleConnectSuccess}
-          onDisconnect={handleDisconnect}
-          isDemoMode={isDemoMode}
-        />
         {/* 4. 測定データテーブル */}
         <div className="p-6 bg-white rounded-lg shadow-md">
           <SectionTitle>
