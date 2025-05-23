@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './app/cosmicwatch-app/', 
+  base: '/app/cosmicwatch-app/',
   plugins: [tailwindcss(), react()],
   build: {
     target: "esnext",

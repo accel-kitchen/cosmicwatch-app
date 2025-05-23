@@ -211,7 +211,7 @@ function App() {
           <span>{isDemoMode ? "停止" : "デモ"}</span>
         </button>
         <a
-          href="https://github.com/nagi-hobbies/cosmicwatch-app"
+          href="https://github.com/accel-kitchen/cosmicwatch-app"
           target="_blank"
           rel="noopener noreferrer"
           title="GitHubリポジトリを開く"
