@@ -9,6 +9,7 @@ export interface CosmicWatchData {
   temp: number;
   hum?: number;
   press?: number;
+  pcTimestamp?: string;
 }
 
 export interface SerialPortConfig {
