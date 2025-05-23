@@ -16,7 +16,9 @@ interface UpdateState {
   currentVersion: string;
   latestVersion: string;
   error: string | null;
+  errorDetails: string | null;
   isVisible: boolean;
+  debugInfo: string[];
 }
 
 export const UpdateChecker = () => {
@@ -29,27 +31,54 @@ export const UpdateChecker = () => {
     currentVersion: "",
     latestVersion: "",
     error: null,
+    errorDetails: null,
     isVisible: false,
+    debugInfo: [],
   });
+
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     checkIsDesktop().then(setIsDesktop);
   }, []);
 
+  const addDebugInfo = (info: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setUpdateState((prev) => ({
+      ...prev,
+      debugInfo: [...prev.debugInfo, `[${timestamp}] ${info}`].slice(-10), // 最新10件のみ保持
+    }));
+  };
+
   const checkForUpdates = async () => {
     if (!isDesktop) return;
+
+    addDebugInfo("アップデートチェック開始");
+    addDebugInfo("エンドポイント: GitHub Releases API");
+    addDebugInfo("公開鍵設定: あり");
 
     setUpdateState((prev) => ({
       ...prev,
       isChecking: true,
       error: null,
+      errorDetails: null,
       isVisible: true,
     }));
 
     try {
+      addDebugInfo("Tauri updater check() を呼び出し中...");
+      addDebugInfo("ネットワーク接続を確認中...");
+
       const update = await check();
+      addDebugInfo(
+        `check() 結果: ${update ? "アップデートあり" : "アップデートなし"}`
+      );
 
       if (update) {
+        addDebugInfo(
+          `現在のバージョン: ${update.currentVersion}, 最新バージョン: ${update.version}`
+        );
+        addDebugInfo(`アップデートが利用可能です`);
         setUpdateState((prev) => ({
           ...prev,
           isChecking: false,
@@ -59,6 +88,7 @@ export const UpdateChecker = () => {
           isVisible: true,
         }));
       } else {
+        addDebugInfo("最新バージョンです");
         setUpdateState((prev) => ({
           ...prev,
           isChecking: false,
@@ -73,53 +103,109 @@ export const UpdateChecker = () => {
       }
     } catch (error) {
       console.error("Update check failed:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "アップデート確認に失敗しました";
+      const errorDetails =
+        error instanceof Error
+          ? `${error.name}: ${error.message}\n${error.stack}`
+          : JSON.stringify(error);
+
+      addDebugInfo(`エラー発生: ${errorMessage}`);
+      addDebugInfo(`エラー詳細: ${errorDetails}`);
+
+      // よくある原因の調査
+      if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
+        addDebugInfo("🔍 ネットワーク接続を確認してください");
+      }
+      if (
+        errorMessage.includes("signature") ||
+        errorMessage.includes("verify")
+      ) {
+        addDebugInfo("🔍 署名検証エラー - 公開鍵の設定を確認");
+      }
+      if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+        addDebugInfo("🔍 GitHub ReleasesにlatestReleasesが存在しません");
+      }
+      if (
+        errorMessage.includes("permission") ||
+        errorMessage.includes("access")
+      ) {
+        addDebugInfo("🔍 権限エラー - 管理者権限で実行してください");
+      }
+
       setUpdateState((prev) => ({
         ...prev,
         isChecking: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "アップデート確認に失敗しました",
+        error: errorMessage,
+        errorDetails: errorDetails,
         isVisible: true,
       }));
 
-      // エラーの場合は5秒後に自動非表示
+      // エラーの場合は10秒後に自動非表示（デバッグ情報確認時間を確保）
       setTimeout(() => {
         setUpdateState((prev) => ({ ...prev, isVisible: false }));
-      }, 5000);
+      }, 10000);
     }
   };
 
   const installUpdate = async () => {
     if (!isDesktop) return;
 
+    addDebugInfo("アップデートインストール開始");
+
     setUpdateState((prev) => ({
       ...prev,
       isUpdating: true,
       error: null,
+      errorDetails: null,
     }));
 
     try {
+      addDebugInfo("アップデート情報を再取得中...");
       const update = await check();
 
       if (update) {
+        addDebugInfo(
+          `アップデートをダウンロード・インストール中... (v${update.version})`
+        );
         // アップデートをダウンロード・インストール
         await update.downloadAndInstall();
 
+        addDebugInfo("アップデートインストール完了");
         // インストール完了状態に設定
         setUpdateState((prev) => ({
           ...prev,
           isUpdating: false,
           updateInstalled: true,
         }));
+      } else {
+        addDebugInfo("アップデート情報が見つかりません");
+        setUpdateState((prev) => ({
+          ...prev,
+          isUpdating: false,
+          error: "アップデート情報が見つかりませんでした",
+          errorDetails: null,
+        }));
       }
     } catch (error) {
       console.error("Update installation failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "アップデートに失敗しました";
+      const errorDetails =
+        error instanceof Error
+          ? `${error.name}: ${error.message}\n${error.stack}`
+          : JSON.stringify(error);
+
+      addDebugInfo(`インストールエラー: ${errorMessage}`);
+      addDebugInfo(`エラー詳細: ${errorDetails}`);
+
       setUpdateState((prev) => ({
         ...prev,
         isUpdating: false,
-        error:
-          error instanceof Error ? error.message : "アップデートに失敗しました",
+        error: errorMessage,
+        errorDetails: errorDetails,
       }));
     }
   };
@@ -233,9 +319,19 @@ export const UpdateChecker = () => {
             {updateState.error && (
               <>
                 <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
-                <span className="text-sm text-gray-700">
-                  {updateState.error}
-                </span>
+                <div className="flex-1">
+                  <div className="text-sm text-gray-700">
+                    {updateState.error}
+                  </div>
+                  {updateState.errorDetails && (
+                    <button
+                      onClick={() => setShowDetails(!showDetails)}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline hover:no-underline mt-1"
+                    >
+                      {showDetails ? "詳細を隠す" : "詳細を表示"}
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -247,6 +343,40 @@ export const UpdateChecker = () => {
             <XMarkIcon className="h-4 w-4" />
           </button>
         </div>
+
+        {/* エラー詳細・デバッグ情報パネル */}
+        {(showDetails || updateState.debugInfo.length > 0) && (
+          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md max-h-40 overflow-y-auto">
+            {showDetails && updateState.errorDetails && (
+              <div className="mb-3">
+                <div className="text-xs font-medium text-gray-600 mb-1">
+                  エラー詳細:
+                </div>
+                <pre className="text-xs text-gray-800 bg-white p-2 rounded border whitespace-pre-wrap">
+                  {updateState.errorDetails}
+                </pre>
+              </div>
+            )}
+
+            {updateState.debugInfo.length > 0 && (
+              <div>
+                <div className="text-xs font-medium text-gray-600 mb-1">
+                  デバッグログ:
+                </div>
+                <div className="text-xs text-gray-700 space-y-1">
+                  {updateState.debugInfo.map((log, index) => (
+                    <div
+                      key={index}
+                      className="font-mono bg-white p-1 rounded border"
+                    >
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
