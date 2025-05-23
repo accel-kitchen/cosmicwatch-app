@@ -152,6 +152,11 @@ function App() {
     return data.raw.length > 0 ? data.raw[data.raw.length - 1] : null;
   }, [data.raw]);
 
+  // 最新のパース済みデータを取得（メモ化）
+  const latestParsedData = useMemo(() => {
+    return data.parsed.length > 0 ? data.parsed[data.parsed.length - 1] : null;
+  }, [data.parsed]);
+
   // デモモード開始
   const startDemoMode = () => {
     handleClearData(); // アプリの状態をクリア
@@ -307,6 +312,7 @@ function App() {
             isDesktop={isDesktop}
             setFileHandle={handleAutoSavePathChange}
             latestRawData={latestRawData}
+            parsedData={latestParsedData}
           />
         </div>
 

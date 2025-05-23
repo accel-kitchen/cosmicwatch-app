@@ -46,15 +46,12 @@ const useColumnsDefinition = (sampleData?: CosmicWatchData) => {
         header: "Date",
         cell: (info) => formatCellValue(info.getValue()),
       });
-      columns.push({
-        accessorKey: "totaltime",
-        header: "Total Time (s)",
-        cell: (info) => formatCellValue(info.getValue()),
-      });
-    } else if (sampleData?.time) {
+    }
+
+    if (sampleData?.time !== undefined) {
       columns.push({
         accessorKey: "time",
-        header: "Time",
+        header: "Time (s)",
         cell: (info) => formatCellValue(info.getValue()),
       });
     }
