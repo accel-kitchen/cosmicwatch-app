@@ -1,57 +1,140 @@
-# CosmicWatch Recorder
+# CosmicWatch Data Recorder
 
-CosmicWatch Recorderは、CosmicWatchからのデータ -> datファイルへの変換をメインの機能に、簡単なデータの表示や解析を行うアプリケーションです。PCにCosmicWatchを接続し、[URL](https://cosmicwatch-app.pages.dev/)にアクセスするだけで、データの記録が可能です。
+> 宇宙線検出器CosmicWatchのデータ記録・解析アプリケーション
 
+CosmicWatch Recorderは、放射線検出器**CosmicWatch**からのデータをリアルタイムで記録・可視化するアプリケーションです。ブラウザアプリとして利用でき、複雑なセットアップなしにCosmicWatchと接続してデータ測定を開始できます。
 
-Google Chrome や Microsoft Edge ブラウザの標準機能を利用することで、アプリやドライバのインストールの必要なく、CosmicWatchとシリアル通信が可能になりました。
+Windowsユーザーのみ、デスクトップアプリ版も利用可能です。
+
+## 🚀 クイックスタート
+
+### Webアプリ版
+**最も簡単な方法です**
+
+1. **ブラウザでアクセス**: [https://cosmicwatch-app.pages.dev/](https://cosmicwatch-app.pages.dev/)
+2. **CosmicWatchを接続**: USBケーブルでPCに接続
+3. **シリアルポートを選択**: アプリ内で接続ボタンをクリック
+4. **測定開始**: データが自動的に表示されます
+
+> ⚠️ **対応ブラウザ**: Google Chrome, Microsoft Edgeなど（Safariは非対応）
+> ⚠️ データはダウンロードボタンを押さないと保存されません
+
+### デスクトップアプリ版（Windows）
+**自動保存したい場合**
+
+1. **ダウンロード**: [最新リリース](https://github.com/nagi-hobbies/cosmicwatch-app/releases/latest)からWindows版を入手
+2. **インストール**: ダウンロードした`.exe`ファイルを実行
+3. **起動**: CosmicWatch Recorderを起動
+
+## ✨ 主な機能
+
+### 📡 リアルタイムデータ取得
+- USB経由でCosmicWatchと接続、データを受信
+- 接続状態をリアルタイム表示
+
+### 📊 データ可視化
+- **ADCヒストグラム**: 放射線エネルギー分布をリアルタイム表示
+- **データテーブル**: 最新100件の測定データを一覧表示
+- **統計情報**: カウントレート、平均値、最大値などの自動計算
+
+### 💾 データ保存
+- **手動ダウンロード**: 測定データを`.dat`ファイルで保存
+- **自動保存（デスクトップ版）**: 指定フォルダに自動上書き
+- **コメント機能**: 測定条件等をコメントとしてファイルに記録可
+
+## 📖 使用方法
+
+### 1. CosmicWatchとの接続
+
+1. **ハードウェア準備**
+   - USBケーブルでPCに接続
+
+2. **アプリでの接続**
+   ```
+   1. 「CosmicWatchと接続」セクションの「接続」ボタンをクリック
+   2. 表示されるポップアップのシリアルポート一覧からCosmicWatchを選択
+   3. 接続成功の表示を確認
+   ```
+
+3. **再接続機能**
+   - 一度接続したデバイスは緑色の再接続ボタンで素早く再接続可能
+
+### 2. データ測定と監視
+
+- **データテーブル**: 最新のイベントデータを確認
+- **ヒストグラム**: エネルギー分布の傾向を監視
+- **統計情報**: 測定効率と品質を確認
+
+### 3. データ保存設定
+
+#### 手動保存
+```
+① 「ファイル設定」でコメントやファイル名を設定
+② 「データをダウンロード」で.datファイルをダウンロード
+```
+
+#### 自動保存（デスクトップ版のみ）
+```
+1. 「自動保存設定」を有効化
+2. 保存先フォルダを選択
+3. 測定開始と同時に自動でファイル作成・追記保存
+```
+
+## 📋 対応データ形式
+
+CosmicWatchは設定により異なるデータ形式を出力します：
+
+| カラム数 | 形式 | 説明 |
+|---------|------|------|
+| 6列 | `event time adc sipm deadtime temp` | 基本形式 |
+| 7列 | `event date totaltime adc sipm deadtime temp` | 日付付き |
+| 9列 | `event date totaltime adc sipm deadtime temp hum press` | 環境センサー付き |
+
+> 💡 アプリは全形式に自動対応し、PC時刻で統一されたタイムスタンプを付与します
+
+## 🔧 トラブルシューティング
+
+### 接続できない場合
+1. **ブラウザ確認**: Chrome/Edgeを使用してみてください
+2. **デバイス確認**: デバイスマネージャーでCosmicWatchが認識されているか確認
+3. **ポート確認**: 他のアプリケーションがシリアルポートを使用していないか確認
+4. **再起動**: ブラウザのリロード、CosmicWatchを再接続
+
+### データが表示されない場合
+1. **接続状態確認**: アプリの接続ステータスを確認
+2. **ケーブル確認**: USBケーブルがデータ通信対応であることを確認
+
+## 💡 Tips
+
+- **複数デバイス**: ブラウザの複数タブで同時に複数のCosmicWatchを使用可能
 
 ---
 
-## ユーザー向け情報
+## 📝 データファイル形式
 
-### ✨ 主な機能
+保存される`.dat`ファイルの形式：
 
-*   **シリアル接続:** USB経由でCosmicWatch検出器に接続し、データをリアルタイムで受信します。
-*   **データ表示:**
-    *   解析済みの測定データ（最新100件）をテーブル形式で表示します。
-    *   受信した生データをそのまま表示します。
-*   **データ解析:**
-    *   ADC値のヒストグラムをインタラクティブなグラフ（Plotly.js）で表示します。
-    *   総シグナル数、カウントレート、平均値、最小値、最大値などの統計情報をリアルタイムで計算・表示します。
-    *   グラフの更新間隔を調整可能です（データ量が多い場合に便利）。
-    *   グラフのズーム状態を保持します。
-*   **データ保存:**
-    *   **手動保存:** 測定中の全データを `.dat` ファイルとしてダウンロードできます。
-    *   **自動保存 (デスクトップ版):** 指定したフォルダに測定データを継続的に追記保存します。
-    *   **自動保存 (Web版 - Chrome/Edge):** FileSystem Access API を使用し、ユーザーが許可したファイルにデータを継続的に追記保存します（実験的な機能）。
-*   **ファイル設定:** 保存するファイルにコメントを追加したり、ファイル名の末尾にカスタムテキスト（サフィックス）を付加したりできます。
-*   **レスポンシブデザイン:** デスクトップ、タブレット、モバイルなど、様々な画面サイズに対応します。
-*   **自動アップデート (デスクトップ版):** 新しいバージョンがリリースされると通知し、簡単にアップデートできます。
+```
+# CosmicWatchから送られてきたコメント
+# アプリ上で設定したコメント
+1	2024-01-01-12-00-01.123	1000	450	25.5	120	22.3
+2	2024-01-01-12-00-02.234	2000	480	26.1	110	22.4
+```
 
-### 🚀 はじめ方
+- タブ区切り形式（TSV）
+- コメント行は`#`で開始
+- PC時刻で統一されたタイムスタンプ
+- パース失敗データも生データとして保存
 
-#### Webアプリケーション
+## 🤝 サポート・フィードバック
 
-最新の Google Chrome または Microsoft Edge ブラウザで、以下のURLにアクセスします。（注: デプロイ先のURLを記載してください。例: `https://your-app-url.com`）
+- **不具合報告**: [GitHub Issues](https://github.com/nagi-hobbies/cosmicwatch-app/issues)
+- **機能要望**: [GitHub Discussions](https://github.com/nagi-hobbies/cosmicwatch-app/discussions)
+- **質問**: [GitHub Discussions Q&A](https://github.com/nagi-hobbies/cosmicwatch-app/discussions/categories/q-a)
 
-#### Windows デスクトップアプリケーション
+## 📄 ライセンス
 
-1.  **ダウンロード:** 最新版を [GitHub Releases](https://github.com/nagi-hobbies/cosmicwatch-app/releases/latest) ページからダウンロードします。
-    *   Windows: `.exe`インストーラー
-    *   macOS, Linux: 非対応
-2.  **インストール:** ダウンロードしたファイルを実行し、指示に従ってインストールします。
-3.  **実行:** インストールされた CosmicWatch Recorder を起動します。
-
-
-### 使い方ガイド
-
-1.  **接続:** CosmicWatch検出器をUSBでPCに接続します。アプリケーションの「CosmicWatch接続」セクションで、正しいシリアルポートを選択し、「接続」ボタンをクリックします。
-2.  **データ表示:** 接続が成功すると、データがリアルタイムで表示され始めます。「測定データ」テーブルと「生データ」エリアが更新されます。
-3.  **データ解析:** 「データ解析」セクションのヒストグラムと統計情報がリアルタイムで更新されます。グラフはズームやパン操作が可能です。更新が重い場合は「グラフ更新間隔」を調整してください。
-4.  **データ保存:**
-    *   手動で保存する場合は、「ファイル設定」セクションでコメントやサフィックスを設定し、「データをダウンロード」ボタンをクリックします。
-    *   デスクトップ版で自動保存を有効にする場合は、「自動保存設定」でフォルダを選択します。
-    *   Web版で自動保存を開始するには、「自動保存を開始 (Chrome/Edge)」ボタンをクリックし、保存先のファイルを選択・許可します。
+保留
 
 ---
 
@@ -59,47 +142,88 @@ Google Chrome や Microsoft Edge ブラウザの標準機能を利用するこ�
 
 ### 🛠️ 技術スタック
 
-*   **フロントエンド:**
-    *   [React](https://reactjs.org/) 19 (with Hooks)
-    *   [TypeScript](https://www.typescriptlang.org/)
-    *   [Vite](https://vitejs.dev/)
-    *   [Tailwind CSS](https://tailwindcss.com/)
-    *   [Plotly.js](https://plotly.com/javascript/) (グラフ描画)
-*   **デスクトップ:**
-    *   [Tauri](https://tauri.app/) (Rust)
-    *   Tauri Plugins: `fs`, `dialog`, `updater`, `log`
-*   **パッケージマネージャー:** [pnpm](https://pnpm.io/)
+**フロントエンド**
+- React 19 + TypeScript
+- Vite (ビルドツール)
+- TailwindCSS (スタイリング)
+- Plotly.js (データ可視化)
+- @tanstack/react-table (テーブル)
 
-### 📁 プロジェクト構造 (概要)
+**デスクトップ**
+- Tauri 2.0 (Rust)
+- Tauri Plugins: fs, dialog, updater
+
+**Web API**
+- Web Serial API (Chrome/Edge)
+- File System Access API (実験的)
+
+### 📁 プロジェクト構造
 
 ```
-cosmicwatch_app/
-├── src/
-│   ├── common/          # プラットフォーム共通のコード
-│   │   ├── components/  # 共通コンポーネント
-│   │   ├── hooks/       # 共通フック
-│   │   └── utils/       # 共通ユーティリティ
-│   ├── web/            # Web/PWA固有のコード
-│   ├── desktop/        # デスクトップアプリ固有のコード
-│   └── shared/         # 型定義や定数など
-├── public/             # 静的ファイル
-└── tauri/             # Tauri固有の設定
+src/
+├── common/              # プラットフォーム共通
+│   ├── components/      # UIコンポーネント
+│   ├── hooks/          # React Hooks
+│   └── utils/          # ユーティリティ関数
+├── shared/             # 型定義・定数
+└── App.tsx            # メインアプリケーション
 ```
 
-### シリアル通信
+### 🏗️ 開発環境セットアップ
 
-- Chrome/EdgeのWebSerial APIでシリアル通信を行う
-- CosmicWatchからのシリアル通信の形式
-  - 始めの数行は `#` で始まるコメント行、その後にデータ行が続く
-  - データ行の形式は、`\t` 区切りで、1イベントのイベント番号、イベント時間、adc値、sipm値、温度などとなっている
-    - 6カラム: `event`, `time`, `adc`, `sipm`, `deadtime`, `temp`
-    - 7カラム: `event`, `date`, `totaltime`, `adc`, `sipm`, `deadtime`, `temp`
-    - 9カラム: `event`, `date`, `totaltime`, `adc`, `sipm`, `deadtime`, `temp`, `hum`, `press`
-  - `event` はイベント番号(整数)、`date` は日付(YYYY-MM-DD-HH-MM-SS.ms)、`totaltime` は総計時間(整数)、`adc` はadc値(整数)、`sipm` はsipm値(小数)、`deadtime` は処理にかかった時間の総計(整数)、`temp` は温度(小数)、`hum` は湿度(小数)、`press` は気圧(小数)
+```bash
+# 依存関係インストール
+pnpm install
 
-### データ保存
+# Web版開発サーバー起動
+pnpm dev
 
-- `.dat`ファイルにはシリアル通信の内容をそのまま保存
-- コメント行（`#`で始まる行）も含めて保存
-- 区切り文字はタブ文字を使用
-- 不正なデータ形式の行もそのまま保存
+# デスクトップ版開発
+pnpm tauri dev
+
+# ビルド
+pnpm build                # Web版
+pnpm tauri build         # デスクトップ版
+```
+
+### 📊 データフロー
+
+1. **データ受信**: Web Serial API → parseCosmicWatchData()
+2. **データ処理**: 型安全なパース → CosmicWatchData型
+3. **状態管理**: React State (raw + parsed)
+4. **可視化**: Plotly.js + React Table
+5. **保存**: File API / Tauri fs
+
+### 🔌 API仕様
+
+#### データパーサー
+```typescript
+parseCosmicWatchData(line: string): CosmicWatchData | null
+```
+
+#### シリアル通信
+```typescript
+interface SerialPortState {
+  port: SerialPort | null;
+  isConnected: boolean;
+  error: string | null;
+}
+```
+
+### 🚀 デプロイ
+
+**Web版**
+- Cloudflare Pages自動デプロイ
+- プッシュ時に自動ビルド・デプロイ
+
+#### 開発ガイドライン
+- TypeScript strictモード遵守
+- ESLint/Prettier設定に従う
+- 機能追加時はREADMEも更新
+
+### 🐛 既知の問題
+
+- Safari非対応（Web Serial API非対応）
+- macOS/Linux版デスクトップアプリ未対応
+  - macOSもデスクトップアプリ化はできるが、Tauriが内部で使用するWebビューアがSafari系統のため、シリアル通信が不可。RustによるネイティブSerial通信を実装すれば可能と思われる。
+- 大量データでのパフォーマンス劣化
