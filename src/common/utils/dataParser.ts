@@ -35,18 +35,18 @@ export const parseCosmicWatchData = (line: string): CosmicWatchData | null => {
       case 6: // event time adc sipm deadtime temp
         return {
           event: parseInt(parts[0], 10),
+          date: pcTimestamp, // PC時刻をdate項目として追加
           time: parseInt(parts[1], 10),
           adc: parseInt(parts[2], 10),
           sipm: parseFloat(parts[3]),
           deadtime: parseInt(parts[4], 10),
           temp: parseFloat(parts[5]),
-          date: pcTimestamp, // PC時刻をdate項目として追加
         };
       case 7: // event date totaltime adc sipm deadtime temp
         return {
           event: parseInt(parts[0], 10),
           date: pcTimestamp, // 元のdateを上書き
-          totaltime: parseInt(parts[2], 10),
+          time: parseInt(parts[2], 10), // totaltimeをtimeに統合
           adc: parseInt(parts[3], 10),
           sipm: parseFloat(parts[4]),
           deadtime: parseInt(parts[5], 10),
@@ -56,7 +56,7 @@ export const parseCosmicWatchData = (line: string): CosmicWatchData | null => {
         return {
           event: parseInt(parts[0], 10),
           date: pcTimestamp, // 元のdateを上書き
-          totaltime: parseInt(parts[2], 10),
+          time: parseInt(parts[2], 10), // totaltimeをtimeに統合
           adc: parseInt(parts[3], 10),
           sipm: parseFloat(parts[4]),
           deadtime: parseInt(parts[5], 10),

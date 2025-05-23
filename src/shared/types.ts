@@ -2,7 +2,6 @@ export interface CosmicWatchData {
   event: number;
   date?: string;
   time?: number;
-  totaltime?: number;
   adc: number;
   sipm: number;
   deadtime: number;
