@@ -6,12 +6,10 @@ import { ChartBarIcon } from "@heroicons/react/24/outline";
 
 interface PlotlyADCHistogramProps {
   data: CosmicWatchData[];
-  startTime: Date | null;
 }
 
 export const ADCHistogram = ({
   data,
-  startTime,
 }: PlotlyADCHistogramProps) => {
   const [samples, setSamples] = useState<CosmicWatchData[]>([]);
   const lastRef = useRef<number>(Date.now());

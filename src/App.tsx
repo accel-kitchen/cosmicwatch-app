@@ -322,7 +322,7 @@ function App() {
         <div className="space-y-6 flex flex-col">
           {/* 3. データ解析（ヒストグラム） */}
           <div className="flex-1">
-            <ADCHistogram data={data.allParsed} startTime={data.startTime} />
+          <ADCHistogram data={data.allParsed} />
           </div>
         </div>
       </div>
