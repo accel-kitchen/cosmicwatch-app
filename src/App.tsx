@@ -8,6 +8,7 @@ import { FileControls } from "./common/components/FileControls";
 import { checkIsDesktop } from "./common/utils/platform";
 import { ADCHistogram } from "./common/components/PlotlyADCHistogram";
 import { generateDemoData, resetDemoDataState } from "./common/utils/demoData";
+import { UpdateChecker } from "./common/components/UpdateChecker";
 import {
   ExclamationTriangleIcon,
   PlayIcon,
@@ -365,6 +366,9 @@ function App() {
           </pre>
         </div>
       </div>
+
+      {/* アップデートチェッカー（固定位置スナックバー） */}
+      <UpdateChecker />
     </Layout>
   );
 }
