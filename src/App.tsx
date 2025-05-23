@@ -172,7 +172,7 @@ function App() {
       demoIntervalRef.current = setInterval(() => {
         const demoData = generateDemoData();
         handleDataReceived(demoData);
-      }, 1000); // 0.5秒ごとにデータ生成
+      }, 1000) as unknown as number; // 型アサーションを追加
     } else if (demoIntervalRef.current) {
       clearInterval(demoIntervalRef.current);
       demoIntervalRef.current = null;
