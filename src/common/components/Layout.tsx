@@ -1,4 +1,5 @@
 import React from "react";
+import packageInfo from "../../../package.json";
 
 // 共通のセクションタイトルを別ファイルに移動する準備として、まずは内部で改善
 export const SectionTitle = ({ children }: { children: React.ReactNode }) => (
@@ -30,7 +31,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         </header>
         <main>{children}</main>
         <footer className="mt-12 pt-4 border-t border-gray-200 text-center text-gray-500 text-sm">
-          <p>CosmicWatch Recorder &copy; {new Date().getFullYear()}</p>
+          <div className="space-y-1">
+            <p>CosmicWatch Recorder &copy; {new Date().getFullYear()}</p>
+            <p>Version {packageInfo.version}</p>
+          </div>
         </footer>
       </div>
     </div>
