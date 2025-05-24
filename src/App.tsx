@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { Layout, SectionTitle } from "./common/components/Layout";
+import { SectionTitle } from "./common/components/Layout";
 import { SerialConnection } from "./common/components/SerialConnection";
 import { DataTable } from "./common/components/DataTable";
 import { parseCosmicWatchData } from "./common/utils/dataParser";
 import { CosmicWatchData } from "./shared/types";
 import { FileControls } from "./common/components/FileControls";
 import { checkIsDesktop } from "./common/utils/platform";
-import { ADCHistogram } from "./common/components/PlotlyADCHistogram";
+import { DataHistograms } from "./common/components/DataHistograms";
 import { generateDemoData, resetDemoDataState } from "./common/utils/demoData";
 import { UpdateChecker } from "./common/components/UpdateChecker";
 import {
@@ -192,186 +192,209 @@ function App() {
   }, [isDemoMode, handleDataReceived]);
 
   return (
-    <Layout>
-      {/* アプリ右上へのデモモードボタン */}
-      <div className="absolute top-4 right-4 flex items-center space-x-3 z-10">
-        {isDemoMode && (
-          <span className="text-red-600 font-bold text-sm bg-white px-2 py-1 rounded shadow">
-            デモモード中
-          </span>
-        )}
-        <button
-          className={`flex items-center space-x-1 px-3 py-2 rounded-md text-sm ${
-            isDemoMode
-              ? "bg-red-500 hover:bg-red-600"
-              : "bg-green-500 hover:bg-green-600"
-          } text-white shadow`}
-          onClick={isDemoMode ? stopDemoMode : startDemoMode}
-          title={isDemoMode ? "デモモードを停止" : "デモモードを開始"}
-        >
-          {isDemoMode ? (
-            <StopIcon className="h-4 w-4" />
-          ) : (
-            <PlayIcon className="h-4 w-4" />
-          )}
-          <span>{isDemoMode ? "停止" : "デモ"}</span>
-        </button>
-        <a
-          href="https://github.com/accel-kitchen/cosmicwatch-app"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="GitHubリポジトリを開く"
-          className="text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <MarkGithubIcon size={20} />
-        </a>
-      </div>
-
-      {/* ブラウザ版専用の注意事項カード */}
-      {!isDesktop && (
-        <div className="mb-6 border-l-4 border-blue-400 bg-blue-50 p-4 rounded-r-md shadow">
-          <div className="space-y-3">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon
-                  className="h-5 w-5 text-yellow-400"
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  Google Chrome, Microsoft Edge等に対応、Safariは非対応です。
-                </p>
-              </div>
-            </div>
-
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <ExclamationTriangleIcon
-                  className="h-5 w-5 text-yellow-400"
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-yellow-700">
-                  測定データをダウンロードせずにブラウザを閉じると、データは保存されません。
-                </p>
-              </div>
-            </div>
-
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <LightBulbIcon
-                  className="h-5 w-5 text-blue-500"
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-blue-700">
-                  ブラウザのタブを複数開くと、複数のCosmicWatchと接続/データの記録ができます。
-                </p>
-              </div>
+    <div className="h-screen flex flex-col bg-gray-100">
+      {/* 上部固定ヘッダー */}
+      <div className="bg-white shadow-[0_2px_8px_2px_rgba(0,0,0,0.1)] border-b border-gray-200 px-6 py-4 flex-shrink-0 relative z-10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <img
+              src="/icon.png"
+              alt="CosmicWatch icon"
+              className="h-10 w-10 mr-3 rounded-lg shadow-md"
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                CosmicWatch Recorder
+              </h1>
+              <p className="text-sm text-gray-600">
+                宇宙線検出器データ記録・解析アプリケーション
+              </p>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* デスクトップ版のヒント */}
-      {isDesktop && (
-        <div className="mb-6 border-l-4 border-blue-400 bg-blue-50 p-4 rounded-r-md shadow">
-          <div className="space-y-3">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <LightBulbIcon
-                  className="h-5 w-5 text-blue-500"
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-blue-700">
-                  アプリを複数開くと、複数のCosmicWatchと接続/データの記録ができます。
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* レスポンシブレイアウト - 大画面では2カラム、小画面では縦並び */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-        {/* 左カラム */}
-        <div className="space-y-6 flex flex-col h-full">
-          {/* 1. ファイル設定 */}
-          <FileControls
-            rawData={data.raw}
-            measurementStartTime={data.startTime}
-            measurementEndTime={data.endTime}
-            additionalComment={fileSettings.comment}
-            setAdditionalComment={handleCommentChange}
-            filenameSuffix={fileSettings.suffix}
-            setFilenameSuffix={handleSuffixChange}
-            isDesktop={isDesktop}
-            setFileHandle={handleAutoSavePathChange}
-            latestRawData={latestRawData}
-            parsedData={latestParsedData}
-          />
-          {/* 2. CosmicWatch接続 */}
-          <SerialConnection
-            onDataReceived={handleDataReceived}
-            onClearData={handleClearData}
-            onConnectSuccess={handleConnectSuccess}
-            onDisconnect={handleDisconnect}
-            isDemoMode={isDemoMode}
-          />
-        </div>
-
-        {/* 右カラム */}
-        <div className="space-y-6 flex flex-col">
-          {/* 3. データ解析（ヒストグラム） */}
-          <div className="flex-1">
-          <ADCHistogram data={data.allParsed} />
-          </div>
-        </div>
-      </div>
-
-      {/* 下部セクション（全幅） */}
-      <div className="mt-6 space-y-6">
-        {/* 4. 測定データテーブル */}
-        <div className="p-6 bg-white rounded-lg shadow-md">
-          <SectionTitle>
-            <div className="flex items-center">
-              <TableCellsIcon className="h-6 w-6 mr-2 text-gray-600" />
-              測定データ
-            </div>
-          </SectionTitle>
-          <div className="bg-white rounded-lg overflow-hidden max-h-80 overflow-y-auto">
-            {data.parsed.length > 0 ? (
-              <DataTable data={data.parsed} />
-            ) : (
-              <div className="p-6 text-gray-500 text-center flex items-center justify-center h-full">
-                データを受信待ち...
-              </div>
+          {/* 右上のコントロール */}
+          <div className="flex items-center space-x-3">
+            {isDemoMode && (
+              <span className="text-red-600 font-bold text-sm bg-red-50 px-3 py-1 rounded-full border border-red-200">
+                デモモード中
+              </span>
             )}
+            <button
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isDemoMode
+                  ? "bg-red-500 hover:bg-red-600"
+                  : "bg-green-500 hover:bg-green-600"
+              } text-white shadow-[2px_2px_8px_rgba(0,0,0,0.15)]`}
+              onClick={isDemoMode ? stopDemoMode : startDemoMode}
+              title={isDemoMode ? "デモモードを停止" : "デモモードを開始"}
+            >
+              {isDemoMode ? (
+                <StopIcon className="h-4 w-4" />
+              ) : (
+                <PlayIcon className="h-4 w-4" />
+              )}
+              <span>{isDemoMode ? "停止" : "デモ"}</span>
+            </button>
+            <a
+              href="https://github.com/accel-kitchen/cosmicwatch-app"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="GitHubリポジトリを開く"
+              className="text-gray-600 hover:text-gray-900 transition-colors p-2 rounded-lg hover:bg-gray-100"
+            >
+              <MarkGithubIcon size={20} />
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* メインコンテンツエリア */}
+      <div className="flex flex-1 flex-col xl:flex-row xl:overflow-hidden">
+        {/* 左側サイドバー（レスポンシブ） */}
+        <div className="xl:w-96 bg-white xl:border-r border-gray-200 flex flex-col xl:overflow-hidden">
+          <div className="xl:flex-1 xl:overflow-y-auto p-6 space-y-6">
+            {/* 注意・ヒント */}
+            <div className="p-6 bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)]">
+              <SectionTitle>
+                <div className="flex items-center">
+                  {!isDesktop ? (
+                    <ExclamationTriangleIcon className="h-6 w-6 mr-2 text-gray-600" />
+                  ) : (
+                    <LightBulbIcon className="h-6 w-6 mr-2 text-gray-600" />
+                  )}
+                  注意・ヒント
+                </div>
+              </SectionTitle>
+              {!isDesktop ? (
+                <div className="text-sm space-y-3">
+                  <div>
+                    <p className="font-medium text-red-700 mb-1">⚠️ 注意</p>
+                    <div className="text-red-600 space-y-1 ml-4">
+                      <p>• Chrome, Edge対応（Safari非対応）</p>
+                      <p>• データはダウンロードをしないと保存されません</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="font-medium text-blue-700 mb-1">💡 ヒント</p>
+                    <div className="text-blue-600 ml-4">
+                      <p>• 複数タブ使用で複数の検出器を接続可能</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm">
+                  <p className="font-medium text-green-700 mb-1">💡 ヒント</p>
+                  <div className="text-green-600 space-y-1 ml-4">
+                    <p>• 自動上書き保存可能、保存先変更可能</p>
+                    <p>• アプリを複数起動で複数の検出器を接続可能</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 1. ファイル設定 */}
+            <div className="p-6 bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)]">
+              <FileControls
+                rawData={data.raw}
+                measurementStartTime={data.startTime}
+                measurementEndTime={data.endTime}
+                additionalComment={fileSettings.comment}
+                setAdditionalComment={handleCommentChange}
+                filenameSuffix={fileSettings.suffix}
+                setFilenameSuffix={handleSuffixChange}
+                isDesktop={isDesktop}
+                setFileHandle={handleAutoSavePathChange}
+                latestRawData={latestRawData}
+                parsedData={latestParsedData}
+              />
+            </div>
+
+            {/* 2. CosmicWatch接続 */}
+            <div className="p-4 bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)]">
+              <SerialConnection
+                onDataReceived={handleDataReceived}
+                onClearData={handleClearData}
+                onConnectSuccess={handleConnectSuccess}
+                onDisconnect={handleDisconnect}
+                isDemoMode={isDemoMode}
+              />
+            </div>
           </div>
         </div>
 
-        {/* 5. 生データ表示 */}
-        <div className="p-6 bg-white rounded-lg shadow-md">
-          <SectionTitle>
-            <div className="flex items-center">
-              <CodeBracketIcon className="h-6 w-6 mr-2 text-gray-600" />
-              生データ
+        {/* 右側メインコンテンツエリア（スクロール可能） */}
+        <div className="flex-1 xl:overflow-y-auto">
+          <div className="p-6 space-y-6">
+            {/* 3. データ解析（ヒストグラム） */}
+            <div className="bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)] overflow-hidden">
+              <DataHistograms
+                data={data.allParsed}
+                startTime={data.startTime}
+              />
             </div>
-          </SectionTitle>
-          <pre className="bg-gray-800 text-gray-200 p-4 rounded-lg overflow-auto max-h-80 text-sm font-mono">
-            {data.raw.slice(-100).join("\n")}
-          </pre>
+
+            {/* 4. 測定データテーブル */}
+            <div className="bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)] overflow-hidden">
+              <div className="p-4">
+                <SectionTitle>
+                  <div className="flex items-center">
+                    <TableCellsIcon className="h-6 w-6 mr-2 text-gray-600" />
+                    測定データ
+                  </div>
+                </SectionTitle>
+                <p className="text-sm text-gray-600 mt-2 mb-4">
+                  最新100件のイベントデータ
+                </p>
+                <div className="bg-white overflow-hidden max-h-80 overflow-y-auto rounded-lg">
+                  {data.parsed.length > 0 ? (
+                    <DataTable data={data.parsed} />
+                  ) : (
+                    <div className="p-8 text-gray-500 text-center flex flex-col items-center justify-center space-y-2">
+                      <TableCellsIcon className="h-12 w-12 text-gray-300" />
+                      <p className="text-lg">データ受信待ち...</p>
+                      <p className="text-sm">
+                        CosmicWatchからデータを受信すると、ここにテーブルが表示されます
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 5. 生データ表示 */}
+            <div className="bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)] overflow-hidden">
+              <div className="p-4">
+                <SectionTitle>
+                  <div className="flex items-center">
+                    <CodeBracketIcon className="h-6 w-6 mr-2 text-gray-600" />
+                    生データ
+                  </div>
+                </SectionTitle>
+                <p className="text-sm text-gray-600 mt-2 mb-4">
+                  CosmicWatchから受信した生データ（最新100行）
+                </p>
+                {data.raw.length > 0 ? (
+                  <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto max-h-80 text-sm font-mono">
+                    {data.raw.slice(-100).join("\n")}
+                  </pre>
+                ) : (
+                  <div className="p-8 text-gray-500 text-center flex flex-col items-center justify-center space-y-2 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <CodeBracketIcon className="h-12 w-12 text-gray-300" />
+                    <p className="text-lg">生データ受信待ち...</p>
+                    <p className="text-sm">
+                      CosmicWatchからのデータが受信されると、ここに表示されます
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* アップデートチェッカー（固定位置スナックバー） */}
       <UpdateChecker />
-    </Layout>
+    </div>
   );
 }
 

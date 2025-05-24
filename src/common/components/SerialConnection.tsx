@@ -161,14 +161,16 @@ export const SerialConnection = ({
   const reconnectButtonProps = getReconnectButtonProps();
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-md">
+    <div>
       <SectionTitle>
         <div className="flex items-center">
           <CpuChipIcon className="h-6 w-6 mr-2 text-gray-600" />
           CosmicWatchと接続
         </div>
       </SectionTitle>
-      <div className="flex items-center justify-between gap-4 mt-4">
+
+      {/* 接続状態表示 */}
+      <div className="mb-4">
         <div className="flex items-center text-sm">
           <StatusIcon
             className={`h-5 w-5 mr-1 ${statusDisplay.color} ${
@@ -185,31 +187,32 @@ export const SerialConnection = ({
             </span>
           )}
         </div>
+      </div>
 
-        <div className="flex space-x-2">
+      {/* 接続ボタン群 */}
+      <div className="space-y-2">
+        <button
+          onClick={buttonProps.onClick}
+          disabled={buttonProps.disabled}
+          className={`${buttonProps.className} w-full justify-center`}
+          title={buttonProps.title}
+        >
+          <ButtonIcon className="h-5 w-5 mr-1" />
+          {buttonProps.text}
+        </button>
+
+        {/* 再接続ボタン */}
+        {reconnectButtonProps && (
           <button
-            onClick={buttonProps.onClick}
-            disabled={buttonProps.disabled}
-            className={buttonProps.className}
-            title={buttonProps.title}
+            onClick={reconnectButtonProps.onClick}
+            disabled={reconnectButtonProps.disabled}
+            className={`${reconnectButtonProps.className} w-full justify-center`}
+            title={reconnectButtonProps.title}
           >
-            <ButtonIcon className="h-5 w-5 mr-1" />
-            {buttonProps.text}
+            <reconnectButtonProps.icon className="h-5 w-5 mr-1" />
+            {reconnectButtonProps.text}
           </button>
-
-          {/* 再接続ボタン */}
-          {reconnectButtonProps && (
-            <button
-              onClick={reconnectButtonProps.onClick}
-              disabled={reconnectButtonProps.disabled}
-              className={reconnectButtonProps.className}
-              title={reconnectButtonProps.title}
-            >
-              <reconnectButtonProps.icon className="h-5 w-5 mr-1" />
-              {reconnectButtonProps.text}
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
       {error && (
