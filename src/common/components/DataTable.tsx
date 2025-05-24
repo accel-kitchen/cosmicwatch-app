@@ -51,7 +51,7 @@ const useColumnsDefinition = (sampleData?: CosmicWatchData) => {
     if (sampleData?.time !== undefined) {
       columns.push({
         accessorKey: "time",
-        header: "Time (s)",
+        header: "Time (ms)",
         cell: (info) => formatCellValue(info.getValue()),
       });
     }
@@ -166,12 +166,21 @@ export const DataTable = ({ data }: DataTableProps) => {
               {row.getVisibleCells().map((cell) => {
                 const value = cell.getValue();
                 const isNumeric = typeof value === "number";
+                const columnId = cell.column.id;
+
+                // 配置を決定
+                let textAlign: "left" | "center" | "right" = "left";
+                if (columnId === "date") {
+                  textAlign = "center";
+                } else if (isNumeric) {
+                  textAlign = "right";
+                }
 
                 return (
                   <td
                     key={cell.id}
                     className="px-4 py-3 whitespace-nowrap text-sm text-gray-700"
-                    style={{ textAlign: isNumeric ? "right" : "left" }}
+                    style={{ textAlign }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
