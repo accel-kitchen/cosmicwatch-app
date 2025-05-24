@@ -175,16 +175,47 @@ src/
 # 依存関係インストール
 pnpm install
 
-# Web版開発サーバー起動
+# Web版開発サーバー起動（ローカル用、base: '/'）
 pnpm dev
+pnpm dev:local           # 同上（明示的にローカル用）
 
 # デスクトップ版開発
-pnpm tauri dev
-
-# ビルド
-pnpm build                # Web版
-pnpm tauri build         # デスクトップ版
+pnpm tauri:dev           # Tauri開発サーバー起動（ローカル用）
+pnpm tauri:dev:local     # 同上（明示的にローカル用）
 ```
+
+#### ビルドコマンド
+
+**Web版**
+```bash
+# 本番用ビルド（base: '/app/cosmicwatch-app/' でデプロイ用）
+pnpm build
+
+# ローカル用ビルド（base: '/' でテスト用）
+pnpm build:local
+
+# プレビュー
+pnpm preview             # 本番用プレビュー
+pnpm preview:local       # ローカル用プレビュー
+```
+
+**デスクトップ版**
+
+※自動アップデートのために署名が必要。詳細はNotionへ
+
+```bash
+# 本番用Tauriビルド（base: '/app/cosmicwatch-app/'）
+pnpm tauri:build
+
+# ローカル用Tauriビルド（base: '/' でテスト用）
+pnpm tauri:build:local
+```
+
+> 💡 **baseパス自動切り替え**:
+> - `development` mode: `base: '/'` (ローカル開発用)
+> - `production` mode: `base: '/app/cosmicwatch-app/'` (本番デプロイ用)
+>
+> ※自動アップデートのために署名が必要、詳細はNotion
 
 ### 📊 データフロー
 

@@ -1,23 +1,24 @@
 {
   "name": "cosmicwatch-recorder",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
-  "author": {
-    "name": "nagi",
-    "email": "naginagi.hobby@gmail.com"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/nagi-hobbies/cosmicwatch-app"
+    "url": "https://github.com/accel-kitchen/cosmicwatch-app"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "vite --mode development",
+    "dev:local": "vite --mode development",
+    "build": "tsc -b && vite build --mode production",
+    "build:local": "tsc -b && vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "preview:local": "vite preview --mode development",
     "tauri:dev": "pnpm tauri dev",
-    "tauri:build": "pnpm tauri build",
+    "tauri:dev:local": "pnpm tauri dev",
+    "tauri:build": "vite build --mode production && pnpm tauri build",
+    "tauri:build:local": "vite build --mode development && pnpm tauri build",
     "sign:win": "signtool.exe sign /f \"C:\\path\\to\\your\\selfsigned_codesign.pfx\" /p YOUR_PFX_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 \"src-tauri\\target\\release\\YourAppName.exe\"",
     "build:signed": "pnpm tauri:build && pnpm run sign:win"
   },
