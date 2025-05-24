@@ -1,5 +1,5 @@
 let eventCounter = 1;
-let totalTime = 0; // totaltimeを加算式で管理
+let time = 0; // timeを加算式で管理
 
 // Box-Muller法で正規分布乱数を生成
 function randn_bm(mu: number, sigma: number) {
@@ -14,7 +14,7 @@ function randn_bm(mu: number, sigma: number) {
 export function generateDemoData(): string {
   // 1cps相当の到来間隔（平均1秒、指数分布で揺らぎを持たせる）
   const interval = -Math.log(1 - Math.random()); // 平均1.0
-  totalTime += Math.round(interval * 1000); // totaltimeはms単位で加算
+  time += Math.round(interval * 1000); // timeはms単位で加算
 
   const now = new Date();
   const date = now
@@ -28,11 +28,11 @@ export function generateDemoData(): string {
   const deadtime = Math.floor(Math.random() * 100);
   const temp = (Math.random() * 10 + 20).toFixed(2); // 20~30
 
-  return `${eventCounter++}\t${date}\t${totalTime}\t${adc}\t${sipm}\t${deadtime}\t${temp}`;
+  return `${eventCounter++}\t${date}\t${time}\t${adc}\t${sipm}\t${deadtime}\t${temp}`;
 }
 
 // デモデータの内部状態をリセットする関数を追加
 export function resetDemoDataState(): void {
   eventCounter = 1;
-  totalTime = 0;
+  time = 0;
 }

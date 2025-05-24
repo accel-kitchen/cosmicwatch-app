@@ -2,13 +2,13 @@ export interface CosmicWatchData {
   event: number;
   date?: string;
   time?: number;
-  totaltime?: number;
   adc: number;
   sipm: number;
   deadtime: number;
   temp: number;
   hum?: number;
   press?: number;
+  pcTimestamp?: string;
 }
 
 export interface SerialPortConfig {

@@ -6,6 +6,7 @@ import {
   formatDateForFilename,
   formatDateTimeLocale,
 } from "../utils/formatters";
+import { CosmicWatchData } from "../../shared/types";
 
 interface AutoSaveOptions {
   isDesktop: boolean;
@@ -14,6 +15,7 @@ interface AutoSaveOptions {
   additionalComment: string;
   filenameSuffix: string;
   latestRawData: string | null;
+  parsedData: CosmicWatchData | null;
   onFileHandleChange: (path: string | null) => void;
 }
 
@@ -24,6 +26,7 @@ export function useAutoSave({
   additionalComment,
   filenameSuffix,
   latestRawData,
+  parsedData,
   onFileHandleChange,
 }: AutoSaveOptions) {
   const [saveDirectory, setSaveDirectory] = useState<string>("");
@@ -114,12 +117,49 @@ export function useAutoSave({
     ) {
       const appendData = async () => {
         try {
-          // データ行をタブ区切りに変換
-          let dataToWrite = latestRawData;
+          let dataToWrite = "";
 
-          // 既にタブ文字が含まれていない場合は変換
-          if (dataToWrite && !dataToWrite.includes("\t")) {
-            dataToWrite = dataToWrite.replace(/\s+/g, "\t");
+          if (parsedData) {
+            // パース成功の場合：パース済みデータをタブ区切りで保存
+            const fields: (string | number)[] = [];
+
+            // イベント番号
+            fields.push(parsedData.event);
+
+            // 日付
+            if (parsedData.date) {
+              fields.push(parsedData.date);
+            }
+
+            // 時間関連
+            if (parsedData.time !== undefined) {
+              fields.push(parsedData.time);
+            }
+
+            // 測定データ
+            fields.push(parsedData.adc);
+            fields.push(parsedData.sipm);
+            fields.push(parsedData.deadtime);
+            fields.push(parsedData.temp);
+
+            // 追加センサーデータ
+            if (parsedData.hum !== undefined) {
+              fields.push(parsedData.hum);
+            }
+            if (parsedData.press !== undefined) {
+              fields.push(parsedData.press);
+            }
+
+            // タブ区切りでデータを結合
+            dataToWrite = fields.join("\t");
+          } else {
+            // パース失敗の場合：生データを保存
+            dataToWrite = latestRawData;
+
+            // 既にタブ文字が含まれていない場合は変換
+            if (dataToWrite && !dataToWrite.includes("\t")) {
+              dataToWrite = dataToWrite.replace(/\s+/g, "\t");
+            }
           }
 
           await writeTextFile(currentFilePath, dataToWrite + "\n", {
@@ -132,7 +172,14 @@ export function useAutoSave({
       };
       appendData();
     }
-  }, [isDesktop, latestRawData, enabled, currentFilePath, isFileCreated]);
+  }, [
+    isDesktop,
+    latestRawData,
+    parsedData,
+    enabled,
+    currentFilePath,
+    isFileCreated,
+  ]);
 
   // 状態をリセットする関数
   const resetState = () => {
