@@ -213,7 +213,7 @@ export const TimeHistogram = ({
             </div>
           </div>
           <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 h-16 flex flex-col justify-center">
-            <div className="font-semibold text-purple-800 text-xs">平均</div>
+            <div className="font-semibold text-purple-800 text-xs">平均値</div>
             <div className="text-sm font-bold text-purple-900">
               {stats.mean}ms
             </div>
@@ -225,11 +225,11 @@ export const TimeHistogram = ({
             </div>
           </div>
           <div className="bg-pink-50 p-3 rounded-lg border border-pink-200 h-16 flex flex-col justify-center">
-            <div className="font-semibold text-pink-800 text-xs">最小</div>
+            <div className="font-semibold text-pink-800 text-xs">最小値</div>
             <div className="text-sm font-bold text-pink-900">{stats.min}ms</div>
           </div>
           <div className="bg-red-50 p-3 rounded-lg border border-red-200 h-16 flex flex-col justify-center">
-            <div className="font-semibold text-red-800 text-xs">最大</div>
+            <div className="font-semibold text-red-800 text-xs">最大値</div>
             <div className="text-sm font-bold text-red-900">{stats.max}ms</div>
           </div>
         </div>

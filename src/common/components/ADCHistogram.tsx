@@ -192,7 +192,7 @@ export const ADCHistogram = ({
             </div>
           </div>
           <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 h-16 flex flex-col justify-center">
-            <div className="font-semibold text-purple-800 text-xs">平均</div>
+            <div className="font-semibold text-purple-800 text-xs">平均値</div>
             <div className="text-sm font-bold text-purple-900">
               {stats.mean}
             </div>
@@ -204,11 +204,11 @@ export const ADCHistogram = ({
             </div>
           </div>
           <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 h-16 flex flex-col justify-center">
-            <div className="font-semibold text-yellow-800 text-xs">最小</div>
+            <div className="font-semibold text-yellow-800 text-xs">最小値</div>
             <div className="text-sm font-bold text-yellow-900">{stats.min}</div>
           </div>
           <div className="bg-red-50 p-3 rounded-lg border border-red-200 h-16 flex flex-col justify-center">
-            <div className="font-semibold text-red-800 text-xs">最大</div>
+            <div className="font-semibold text-red-800 text-xs">最大値</div>
             <div className="text-sm font-bold text-red-900">{stats.max}</div>
           </div>
         </div>
