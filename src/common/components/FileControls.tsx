@@ -14,6 +14,8 @@ import {
   FolderOpenIcon,
 } from "@heroicons/react/24/outline";
 import { Switch } from "@headlessui/react";
+import { CosmicWatchData } from "../../shared/types";
+import { parseCosmicWatchData } from "../utils/dataParser";
 
 interface FileControlsProps {
   rawData: string[];
@@ -26,6 +28,7 @@ interface FileControlsProps {
   isDesktop: boolean;
   setFileHandle: (path: string | null) => void;
   latestRawData: string | null;
+  parsedData?: CosmicWatchData | null;
 }
 
 const CommentSection = ({
@@ -226,6 +229,7 @@ export const FileControls = ({
   isDesktop,
   setFileHandle,
   latestRawData,
+  parsedData,
 }: FileControlsProps) => {
   const [includeComments, setIncludeComments] = useState(false);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(true);
@@ -238,6 +242,7 @@ export const FileControls = ({
       additionalComment,
       filenameSuffix,
       latestRawData,
+      parsedData: parsedData ?? null,
       onFileHandleChange: setFileHandle,
     });
 
@@ -269,15 +274,48 @@ export const FileControls = ({
       (line) => includeComments || !line.trim().startsWith("#")
     );
 
-    // 行間の区切りはそのままに、複数の空白をタブに変換
-    const tabSeparatedData = filteredData.map((line) => {
-      // 既にタブ文字が含まれている場合はそのまま
-      if (line.includes("\t")) return line;
-      // 複数の連続した空白をタブに変換
-      return line.replace(/\s+/g, "\t");
+    const processedData = filteredData.map((line) => {
+      if (line.trim().startsWith("#")) {
+        return line;
+      }
+
+      const parsedLineData = parseCosmicWatchData(line);
+
+      if (parsedLineData) {
+        const fields: (string | number)[] = [];
+
+        fields.push(parsedLineData.event);
+
+        if (parsedLineData.date) {
+          fields.push(parsedLineData.date);
+        }
+
+        if (parsedLineData.time !== undefined) {
+          fields.push(parsedLineData.time);
+        }
+
+        fields.push(parsedLineData.adc);
+        fields.push(parsedLineData.sipm);
+        fields.push(parsedLineData.deadtime);
+        fields.push(parsedLineData.temp);
+
+        if (parsedLineData.hum !== undefined) {
+          fields.push(parsedLineData.hum);
+        }
+        if (parsedLineData.press !== undefined) {
+          fields.push(parsedLineData.press);
+        }
+
+        return fields.join("\t");
+      } else {
+        if (line.includes("\t")) {
+          return line;
+        }
+        return line.replace(/\s+/g, "\t");
+      }
     });
 
-    content += tabSeparatedData.join("\n");
+    content += processedData.join("\n");
 
     const startTimestamp = formatDateForFilename(measurementStartTime);
     const endTimestamp = formatDateForFilename(endTime);

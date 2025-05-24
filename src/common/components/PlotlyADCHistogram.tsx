@@ -8,9 +8,7 @@ interface PlotlyADCHistogramProps {
   data: CosmicWatchData[];
 }
 
-export const ADCHistogram = ({
-  data,
-}: PlotlyADCHistogramProps) => {
+export const ADCHistogram = ({ data }: PlotlyADCHistogramProps) => {
   const [samples, setSamples] = useState<CosmicWatchData[]>([]);
   const lastRef = useRef<number>(Date.now());
   const timerRef = useRef<number | null>(null);
@@ -37,7 +35,7 @@ export const ADCHistogram = ({
   const adcVals = useMemo(() => samples.map((d) => d.adc), [samples]);
   // 秒単位に変換
   const timeVals = useMemo(
-    () => samples.map((d) => (d.time ?? d.totaltime ?? 0) / 1000),
+    () => samples.map((d) => (d.time ?? 0) / 1000),
     [samples]
   );
 
@@ -76,16 +74,19 @@ export const ADCHistogram = ({
         </div>
       </SectionTitle>
       <div className="space-y-4">
-      <div className="flex items-center space-x-2 bg-white border border-gray-200 rounded px-3 py-2">
-        <label htmlFor="updateInterval" className="mr-2 text-sm text-gray-700">
-          更新間隔
-        </label>
-        <select
-          id="updateInterval"
-          value={updateInterval}
-          onChange={(e) => setUpdateInterval(Number(e.target.value))}
-          className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-        >
+        <div className="flex items-center space-x-2 bg-white border border-gray-200 rounded px-3 py-2">
+          <label
+            htmlFor="updateInterval"
+            className="mr-2 text-sm text-gray-700"
+          >
+            更新間隔
+          </label>
+          <select
+            id="updateInterval"
+            value={updateInterval}
+            onChange={(e) => setUpdateInterval(Number(e.target.value))}
+            className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          >
             {[1, 10, 60, 300, 600].map((v) => (
               <option key={v} value={v}>
                 {v === 1 ? "1秒" : v === 60 ? "1分" : `${v}秒`}
@@ -145,20 +146,24 @@ export const ADCHistogram = ({
 
       {/* 時刻ヒストグラム */}
       <div>
-          <Plot
-            revision={samples.length}
-            data={[
-              {
-                x: timeVals,
-                type: "histogram",
-                autobinx: false,
-              xbins: { start: 0, end: Math.max(...timeVals), size: timeBinSize },
-                marker: { color: "rgba(153,102,255,0.6)", line: { width: 1 } },
+        <Plot
+          revision={samples.length}
+          data={[
+            {
+              x: timeVals,
+              type: "histogram",
+              autobinx: false,
+              xbins: {
+                start: 0,
+                end: Math.max(...timeVals),
+                size: timeBinSize,
               },
-            ]}
-            layout={{
-              ...layoutCommon,
-              xaxis: { title: "Time (s)", gridcolor: "#e2e8f0" },
+              marker: { color: "rgba(153,102,255,0.6)", line: { width: 1 } },
+            },
+          ]}
+          layout={{
+            ...layoutCommon,
+            xaxis: { title: "Time (s)", gridcolor: "#e2e8f0" },
             yaxis: { title: "Count", gridcolor: "#e2e8f0" },
             title: { text: "時刻ヒストグラム" },
           }}

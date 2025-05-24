@@ -8,6 +8,7 @@ import { FileControls } from "./common/components/FileControls";
 import { checkIsDesktop } from "./common/utils/platform";
 import { ADCHistogram } from "./common/components/PlotlyADCHistogram";
 import { generateDemoData, resetDemoDataState } from "./common/utils/demoData";
+import { UpdateChecker } from "./common/components/UpdateChecker";
 import {
   ExclamationTriangleIcon,
   PlayIcon,
@@ -151,6 +152,11 @@ function App() {
   const latestRawData = useMemo(() => {
     return data.raw.length > 0 ? data.raw[data.raw.length - 1] : null;
   }, [data.raw]);
+
+  // 最新のパース済みデータを取得（メモ化）
+  const latestParsedData = useMemo(() => {
+    return data.parsed.length > 0 ? data.parsed[data.parsed.length - 1] : null;
+  }, [data.parsed]);
 
   // デモモード開始
   const startDemoMode = () => {
@@ -307,6 +313,7 @@ function App() {
             isDesktop={isDesktop}
             setFileHandle={handleAutoSavePathChange}
             latestRawData={latestRawData}
+            parsedData={latestParsedData}
           />
           {/* 2. CosmicWatch接続 */}
           <SerialConnection
@@ -361,6 +368,9 @@ function App() {
           </pre>
         </div>
       </div>
+
+      {/* アップデートチェッカー（固定位置スナックバー） */}
+      <UpdateChecker />
     </Layout>
   );
 }
