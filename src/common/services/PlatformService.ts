@@ -94,9 +94,15 @@ export class TauriPlatformService implements PlatformService {
 
   async saveFile(content: string, filename: string): Promise<void> {
     // デスクトップ版では通常のファイル保存ダイアログを使用
+    console.log("TauriPlatformService.saveFile called:", {
+      filename,
+      contentLength: content.length,
+    });
+
     const { save } = await import("@tauri-apps/plugin-dialog");
     const { writeTextFile } = await import("@tauri-apps/plugin-fs");
 
+    console.log("Opening save dialog...");
     const filePath = await save({
       defaultPath: filename,
       filters: [
@@ -111,8 +117,14 @@ export class TauriPlatformService implements PlatformService {
       ],
     });
 
+    console.log("Save dialog result:", filePath);
+
     if (filePath) {
+      console.log("Writing file to:", filePath);
       await writeTextFile(filePath, content);
+      console.log("File write completed successfully");
+    } else {
+      console.log("User cancelled save dialog");
     }
   }
 
