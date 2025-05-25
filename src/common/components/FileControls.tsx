@@ -276,20 +276,8 @@ export const FileControls = memo(
     };
 
     const handleDownload = async () => {
-      if (!measurementStartTime || !platformService) {
-        console.log("Download blocked:", {
-          measurementStartTime,
-          platformService,
-        });
-        return;
-      }
+      if (!measurementStartTime || !platformService) return;
       const endTime = measurementEndTime ?? new Date();
-
-      console.log("Starting download process...", {
-        isDesktop,
-        dataLength: rawData.length,
-        includeComments: fileSettings.includeComments,
-      });
 
       try {
         let content = "";
@@ -334,12 +322,7 @@ export const FileControls = memo(
         const suffix = fileSettings.suffix ? `_${fileSettings.suffix}` : "";
         const filename = `${startTimestamp}-${endTimestamp}${suffix}.dat`;
 
-        console.log("Attempting to save file:", {
-          filename,
-          contentLength: content.length,
-        });
         await platformService.saveFile(content, filename);
-        console.log("File saved successfully!");
       } catch (error) {
         ErrorHandler.fileOperation(
           "ファイルの保存に失敗しました",
