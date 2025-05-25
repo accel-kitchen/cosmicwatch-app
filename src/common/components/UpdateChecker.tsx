@@ -138,43 +138,14 @@ export const UpdateChecker = () => {
     setUpdateState((prev) => ({ ...prev, isVisible: false }));
   };
 
-  // 自動チェック（アプリ起動時・リロード時）
+  // 自動チェック（アプリ起動時のみ）
   useEffect(() => {
     if (isDesktop) {
-      // アプリ起動・リロード時により早くチェック実行
+      // アプリ起動時のみチェック実行
       const timer = setTimeout(checkForUpdates, 1000);
       return () => clearTimeout(timer);
     }
   }, [isDesktop]);
-
-  // リロード検知とアップデートチェック
-  useEffect(() => {
-    if (!isDesktop) return;
-
-    const handleVisibilityChange = () => {
-      // ページが再表示された時（タブ切り替えやリロード後）
-      if (document.visibilityState === "visible" && !updateState.isChecking) {
-        // 少し遅延してアップデートチェック実行
-        setTimeout(checkForUpdates, 500);
-      }
-    };
-
-    const handleFocus = () => {
-      // ウィンドウがフォーカスされた時（リロード後含む）
-      if (!updateState.isChecking) {
-        setTimeout(checkForUpdates, 500);
-      }
-    };
-
-    // リロード検知のためのイベントリスナー
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [isDesktop, updateState.isChecking]);
 
   if (!isDesktop || !updateState.isVisible) return null;
 
