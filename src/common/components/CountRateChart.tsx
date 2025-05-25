@@ -397,21 +397,8 @@ export const CountRateChart = ({
         <div className="space-y-3">
           <div className="flex items-center space-x-2">
             <label className="text-sm font-medium text-purple-800">
-              データ点数:
+              データ点数: {dataPoints}点
             </label>
-            <input
-              type="number"
-              min="10"
-              max="200"
-              value={dataPoints}
-              onChange={(e) => {
-                const value = Number(e.target.value);
-                if (value >= 10 && value <= 200) {
-                  setDataPoints(value);
-                }
-              }}
-              className="w-20 px-2 py-1 text-sm border border-purple-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
           </div>
           <div className="space-y-2">
             <input
@@ -426,16 +413,38 @@ export const CountRateChart = ({
                 setDataPoints(values[index]);
               }}
               className="w-full h-3 bg-purple-200 rounded-lg appearance-none cursor-pointer slider-thumb:bg-purple-600"
-              style={{
-                background: `linear-gradient(to right, #e9d5ff 0%, #e9d5ff 100%)`,
-              }}
             />
-            <div className="flex justify-between text-xs text-purple-600 px-0.5">
-              <span>10</span>
-              <span>20</span>
-              <span>50</span>
-              <span>100</span>
-              <span>200</span>
+            <div className="relative text-xs text-purple-600 pb-6">
+              <span
+                className="absolute"
+                style={{ left: "0%", transform: "translateX(-50%)" }}
+              >
+                10
+              </span>
+              <span
+                className="absolute"
+                style={{ left: "25%", transform: "translateX(-50%)" }}
+              >
+                20
+              </span>
+              <span
+                className="absolute"
+                style={{ left: "50%", transform: "translateX(-50%)" }}
+              >
+                50
+              </span>
+              <span
+                className="absolute"
+                style={{ left: "75%", transform: "translateX(-50%)" }}
+              >
+                100
+              </span>
+              <span
+                className="absolute"
+                style={{ left: "100%", transform: "translateX(-50%)" }}
+              >
+                200
+              </span>
             </div>
           </div>
         </div>
