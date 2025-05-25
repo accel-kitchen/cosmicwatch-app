@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { check } from "@tauri-apps/plugin-updater";
-import { checkIsDesktop } from "../utils/platform";
+import { PlatformService } from "../services/PlatformService";
 import {
   ArrowDownTrayIcon,
   CheckCircleIcon,
@@ -19,7 +19,11 @@ interface UpdateState {
   isVisible: boolean;
 }
 
-export const UpdateChecker = () => {
+interface UpdateCheckerProps {
+  platformService: PlatformService | null;
+}
+
+export const UpdateChecker = ({ platformService }: UpdateCheckerProps) => {
   const [isDesktop, setIsDesktop] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>({
     isChecking: false,
@@ -33,8 +37,10 @@ export const UpdateChecker = () => {
   });
 
   useEffect(() => {
-    checkIsDesktop().then(setIsDesktop);
-  }, []);
+    if (platformService) {
+      setIsDesktop(platformService.isDesktop());
+    }
+  }, [platformService]);
 
   const checkForUpdates = async () => {
     if (!isDesktop) return;

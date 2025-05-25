@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { SerialPortState, PortInfo } from "../../shared/types";
+import { CosmicWatchDataService } from "../services/CosmicWatchDataService";
 
 // シリアルポートの設定
 const DEFAULT_SERIAL_OPTIONS = {
@@ -246,35 +247,10 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
     line: string,
     callback: (data: string) => void
   ) => {
-    // すでにコメント行ならそのまま渡す
-    if (line.startsWith("#")) {
-      log("コメント行:", line);
-      callback(line);
-      return;
-    }
-
-    // データ形式を検証
-    try {
-      const parts = line.trim().split(/\s+/);
-      const validFormats = [6, 7, 9]; // 有効なカラム数 (dataParser.tsに基づく)
-      const isFirstColumnNumber = !isNaN(parseInt(parts[0], 10));
-
-      if (!validFormats.includes(parts.length) || !isFirstColumnNumber) {
-        // 無効なデータ形式の場合、コメント化して送信
-        const commentedLine = `# Invalid format: ${line}`;
-        log("無効なデータ形式、コメント化:", commentedLine);
-        callback(commentedLine);
-      } else {
-        // 有効なデータ行はそのまま送信
-        log("有効なデータ行:", line);
-        callback(line);
-      }
-    } catch (error) {
-      // パースエラーが発生した場合もコメント化
-      const commentedLine = `# Parse error: ${line}`;
-      log("パースエラー、コメント化:", error, commentedLine);
-      callback(commentedLine);
-    }
+    // 新しいサービスクラスを使用してデータ行を処理
+    const processedLine = CosmicWatchDataService.processDataLine(line);
+    log("処理済みデータ行:", processedLine);
+    callback(processedLine);
   };
 
   /**

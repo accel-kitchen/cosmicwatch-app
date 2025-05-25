@@ -15,7 +15,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { Switch } from "@headlessui/react";
 import { CosmicWatchData } from "../../shared/types";
-import { parseCosmicWatchData } from "../utils/dataParser";
+import { CosmicWatchDataService } from "../services/CosmicWatchDataService";
+import { PlatformService } from "../services/PlatformService";
 
 interface FileControlsProps {
   rawData: string[];
@@ -26,6 +27,7 @@ interface FileControlsProps {
   filenameSuffix: string;
   setFilenameSuffix: (suffix: string) => void;
   isDesktop: boolean;
+  platformService: PlatformService | null;
   setFileHandle: (path: string | null) => void;
   latestRawData: string | null;
   parsedData?: CosmicWatchData | null;
@@ -36,11 +38,13 @@ const CommentSection = ({
   setIncludeComments,
   comment,
   setComment,
+  isAutoSaving,
 }: {
   includeComments: boolean;
   setIncludeComments: (value: boolean) => void;
   comment: string;
   setComment: (comment: string) => void;
+  isAutoSaving: boolean;
 }) => (
   <div>
     <SectionHeader>
@@ -57,7 +61,7 @@ const CommentSection = ({
           htmlFor="includeComments"
           className="select-none cursor-pointer ml-2"
         >
-          コメントを含める
+          コメントを含める（手動ダウンロード用）
         </label>
       </div>
     </SectionHeader>
@@ -78,6 +82,12 @@ const CommentSection = ({
         placeholder="測定条件などのコメント（ファイル先頭に#付きで挿入されます）"
         disabled={!includeComments}
       />
+      {isAutoSaving && (
+        <p className="text-xs text-blue-600 mt-1">
+          💡
+          自動保存は記録開始時の設定で動作中。この設定は手動ダウンロード時に適用されます。
+        </p>
+      )}
     </div>
   </div>
 );
@@ -192,12 +202,17 @@ const AutoSaveSection = ({
     </div>
     <div className="mt-2">
       {currentFilePath && isEnabled && (
-        <p className="text-xs text-green-700 font-medium">
-          自動保存中:{" "}
-          <span className="font-normal text-gray-600 break-all">
-            {currentFilePath}
-          </span>
-        </p>
+        <div>
+          <p className="text-xs text-green-700 font-medium">
+            自動保存中:{" "}
+            <span className="font-normal text-gray-600 break-all">
+              {currentFilePath}
+            </span>
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            ※ 記録開始時の設定で新しいデータのみを追記保存中
+          </p>
+        </div>
       )}
       {!isEnabled && (
         <p className="text-xs text-gray-500 font-medium">
@@ -227,6 +242,7 @@ export const FileControls = ({
   filenameSuffix,
   setFilenameSuffix,
   isDesktop,
+  platformService,
   setFileHandle,
   latestRawData,
   parsedData,
@@ -244,6 +260,8 @@ export const FileControls = ({
       latestRawData,
       parsedData: parsedData ?? null,
       onFileHandleChange: setFileHandle,
+      includeComments,
+      platformService,
     });
 
   const handleAutoSaveToggle = (isChecked: boolean) => {
@@ -251,8 +269,8 @@ export const FileControls = ({
     setEnabled(isChecked);
   };
 
-  const handleDownload = () => {
-    if (!measurementStartTime) return;
+  const handleDownload = async () => {
+    if (!measurementStartTime || !platformService) return;
     const endTime = measurementEndTime ?? new Date();
 
     let content = "";
@@ -279,39 +297,12 @@ export const FileControls = ({
         return line;
       }
 
-      const parsedLineData = parseCosmicWatchData(line);
+      const parsedLineData = CosmicWatchDataService.parseRawData(line);
 
       if (parsedLineData) {
-        const fields: (string | number)[] = [];
-
-        fields.push(parsedLineData.event);
-
-        if (parsedLineData.date) {
-          fields.push(parsedLineData.date);
-        }
-
-        if (parsedLineData.time !== undefined) {
-          fields.push(parsedLineData.time);
-        }
-
-        fields.push(parsedLineData.adc);
-        fields.push(parsedLineData.sipm);
-        fields.push(parsedLineData.deadtime);
-        fields.push(parsedLineData.temp);
-
-        if (parsedLineData.hum !== undefined) {
-          fields.push(parsedLineData.hum);
-        }
-        if (parsedLineData.press !== undefined) {
-          fields.push(parsedLineData.press);
-        }
-
-        return fields.join("\t");
+        return CosmicWatchDataService.formatDataForFile(parsedLineData);
       } else {
-        if (line.includes("\t")) {
-          return line;
-        }
-        return line.replace(/\s+/g, "\t");
+        return CosmicWatchDataService.formatRawDataForFile(line);
       }
     });
 
@@ -321,15 +312,12 @@ export const FileControls = ({
     const endTimestamp = formatDateForFilename(endTime);
     const suffix = filenameSuffix ? `_${filenameSuffix}` : "";
     const filename = `${startTimestamp}-${endTimestamp}${suffix}.dat`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+
+    try {
+      await platformService.saveFile(content, filename);
+    } catch (error) {
+      console.error("Failed to save file:", error);
+    }
   };
 
   return (
@@ -347,6 +335,7 @@ export const FileControls = ({
           setIncludeComments={setIncludeComments}
           comment={additionalComment}
           setComment={setAdditionalComment}
+          isAutoSaving={currentFilePath !== null}
         />
 
         <FilenameSection
@@ -364,7 +353,7 @@ export const FileControls = ({
             データをダウンロード (.dat)
           </button>
           <p className="text-xs text-gray-500 mt-1 text-center">
-            現在の全測定データをファイルとして保存します。
+            現在の全測定データを上記のコメント設定でファイル保存します。
           </p>
         </div>
 

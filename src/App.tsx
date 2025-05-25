@@ -2,15 +2,18 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { SectionTitle } from "./common/components/Layout";
 import { SerialConnection } from "./common/components/SerialConnection";
 import { DataTable } from "./common/components/DataTable";
-import { parseCosmicWatchData } from "./common/utils/dataParser";
+import { CosmicWatchDataService } from "./common/services/CosmicWatchDataService";
 import { CosmicWatchData } from "./shared/types";
 import { FileControls } from "./common/components/FileControls";
-import { checkIsDesktop } from "./common/utils/platform";
 import { DataHistograms } from "./common/components/DataHistograms";
 import { generateDemoData, resetDemoDataState } from "./common/utils/demoData";
 import { UpdateChecker } from "./common/components/UpdateChecker";
 import { LayoutSelector } from "./common/components/LayoutSelector";
 import { useResponsiveLayout } from "./common/hooks/useResponsiveLayout";
+import {
+  createPlatformService,
+  PlatformService,
+} from "./common/services/PlatformService";
 import {
   ExclamationTriangleIcon,
   PlayIcon,
@@ -61,22 +64,28 @@ function App() {
     autoSavePath: null,
   });
 
-  // プラットフォーム検出
+  // プラットフォーム関連の状態（統一化）
+  const [platformService, setPlatformService] =
+    useState<PlatformService | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
 
   // デモモード状態と制御
   const [isDemoMode, setIsDemoMode] = useState(false);
   const demoIntervalRef = useRef<number | null>(null);
 
-  // Tauriアプリケーションの判定
+  // プラットフォームサービスを初期化（アプリ全体で共有）
   useEffect(() => {
-    checkIsDesktop().then((desktop) => {
+    const initPlatformService = async () => {
+      const service = await createPlatformService();
+      const desktop = service.isDesktop();
+      setPlatformService(service);
       setIsDesktop(desktop);
       console.log(
         "実行環境:",
         desktop ? "デスクトップアプリ (Tauri)" : "Webブラウザ"
       );
-    });
+    };
+    initPlatformService();
   }, []);
 
   // データ受信時のハンドラー（修正）
@@ -88,7 +97,7 @@ function App() {
       const updatedRaw = [...prevData.raw, newData];
 
       // 解析データの処理
-      const parsed = parseCosmicWatchData(newData);
+      const parsed = CosmicWatchDataService.parseRawData(newData);
 
       // 全データとテーブル表示用データ（最新100件）を別々に管理
       const updatedAllParsed = parsed
@@ -352,6 +361,7 @@ function App() {
                 filenameSuffix={fileSettings.suffix}
                 setFilenameSuffix={handleSuffixChange}
                 isDesktop={isDesktop}
+                platformService={platformService}
                 setFileHandle={handleAutoSavePathChange}
                 latestRawData={latestRawData}
                 parsedData={latestParsedData}
@@ -442,7 +452,7 @@ function App() {
       </div>
 
       {/* アップデートチェッカー（固定位置スナックバー） */}
-      <UpdateChecker />
+      <UpdateChecker platformService={platformService} />
     </div>
   );
 }
