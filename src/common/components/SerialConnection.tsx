@@ -64,8 +64,8 @@ export const SerialConnection = memo(() => {
     // 接続成功時の処理（必要に応じて追加）
   }, []);
 
-  // 切断ハンドラー（createAsyncThunk統一版）
-  const handleDisconnectAction = useCallback(async () => {
+  // 切断時のコールバック（測定停止処理）
+  const handleDisconnected = useCallback(async () => {
     try {
       if (isRecording) {
         await dispatch(stopMeasurement()).unwrap();
@@ -86,7 +86,7 @@ export const SerialConnection = memo(() => {
     connect,
     disconnect,
     reconnect,
-  } = useSerialPort(handleDataReceived);
+  } = useSerialPort(handleDataReceived, handleDisconnected);
 
   // 直接的なクリックハンドラー（ユーザージェスチャーを確実に保持）
   const handleConnectClick = useCallback(
@@ -117,8 +117,7 @@ export const SerialConnection = memo(() => {
 
   const handleDisconnect = useCallback(async () => {
     await disconnect();
-    handleDisconnectAction();
-  }, [disconnect, handleDisconnectAction]);
+  }, [disconnect]);
 
   const handleReconnect = useCallback(async () => {
     if (isDemoMode) return;

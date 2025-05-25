@@ -20,7 +20,10 @@ const log = (...args: any[]) => {
 /**
  * シリアルポート通信を管理するフック（createAsyncThunk統一版）
  */
-export const useSerialPort = (onDataReceived: (data: string) => void) => {
+export const useSerialPort = (
+  onDataReceived: (data: string) => void,
+  onDisconnected?: () => void
+) => {
   // Redux hooks
   const dispatch = useAppDispatch();
   const connectionStatus = useAppSelector(selectConnectionStatus);
@@ -282,7 +285,11 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
       if (!cleanupRef.current) {
         log("データ読み取り中にエラー:", error);
         // 読み取りエラーが発生した場合は切断処理を実行
-        disconnect();
+        await disconnect();
+        // 切断時のコールバックを呼び出し
+        if (onDisconnected) {
+          onDisconnected();
+        }
       }
     } finally {
       log("読み取りループを終了しました");
@@ -316,10 +323,15 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
       writerRef.current = null;
 
       log("切断が完了しました - ローカル参照もクリアしました");
+
+      // 切断時のコールバックを呼び出し
+      if (onDisconnected) {
+        onDisconnected();
+      }
     } catch (error) {
       log("切断エラー:", error);
     }
-  }, [connectionStatus.isConnected, dispatch]);
+  }, [connectionStatus.isConnected, dispatch, onDisconnected]);
 
   /**
    * エラーをクリアする

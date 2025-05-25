@@ -12,7 +12,11 @@ import { CountRateChart } from "./CountRateChart";
 
 // Redux関連のimport
 import { useAppSelector } from "../../store/hooks";
-import { selectDataHistogramsData } from "../../store/selectors";
+import {
+  selectDataHistogramsData,
+  selectMeasurementDuration,
+  selectIsRecording,
+} from "../../store/selectors";
 
 type GraphLayoutType = "auto" | "vertical" | "horizontal";
 
@@ -25,6 +29,8 @@ export const DataHistograms = () => {
     statistics,
   } = useAppSelector(selectDataHistogramsData);
   const { startTime } = measurementTimes;
+  const measurementDuration = useAppSelector(selectMeasurementDuration);
+  const isRecording = useAppSelector(selectIsRecording);
 
   const [samples, setSamples] = useState<CosmicWatchData[]>([]);
   const lastRef = useRef<number>(Date.now());
@@ -42,14 +48,18 @@ export const DataHistograms = () => {
   // 測定時間が5分を経過したかチェック（リアルタイム更新）
   const [currentTime, setCurrentTime] = useState(Date.now());
 
-  // 1秒ごとに現在時刻を更新
+  // 測定中の場合のみ1秒ごとに現在時刻を更新
   useEffect(() => {
+    if (!isRecording) {
+      return; // 測定停止中は更新しない
+    }
+
     const timer = setInterval(() => {
       setCurrentTime(Date.now());
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isRecording]);
 
   const isMeasurementOver5Minutes = useMemo(() => {
     if (!startTime) return false;
@@ -164,7 +174,8 @@ export const DataHistograms = () => {
 
   const formatElapsedTime = () => {
     if (!startTime) return "---";
-    const elapsed = (Date.now() - startTime.getTime()) / 1000;
+    // Redux selectorから取得した測定時間を使用（停止時は固定値）
+    const elapsed = measurementDuration;
 
     const months = Math.floor(elapsed / (30 * 24 * 3600));
     const days = Math.floor((elapsed % (30 * 24 * 3600)) / (24 * 3600));
