@@ -9,6 +9,7 @@ interface ADCHistogramProps {
   binSize: number;
   setBinSize: (size: number) => void;
   startTime: Date | null;
+  graphLayout?: "vertical" | "horizontal";
 }
 
 export const ADCHistogram = ({
@@ -16,6 +17,7 @@ export const ADCHistogram = ({
   binSize,
   setBinSize,
   startTime,
+  graphLayout = "vertical",
 }: ADCHistogramProps) => {
   // ズーム状態を保持
   const [zoomState, setZoomState] = useState<any>(null);
@@ -178,38 +180,30 @@ export const ADCHistogram = ({
 
       {/* 統計情報 */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-center text-sm">
-          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 h-16 flex flex-col justify-center">
+        <div
+          className={`grid gap-2 text-sm ${
+            graphLayout === "horizontal"
+              ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+              : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+          }`}
+        >
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex flex-col items-center justify-center text-center">
             <div className="font-semibold text-blue-800 text-xs">
               総イベント数
             </div>
             <div className="text-lg font-bold text-blue-900">{stats.count}</div>
           </div>
-          <div className="bg-green-50 p-3 rounded-lg border border-green-200 h-16 flex flex-col justify-center">
+          <div className="bg-green-50 p-3 rounded-lg border border-green-200 flex flex-col items-center justify-center text-center">
             <div className="font-semibold text-green-800 text-xs">レート</div>
             <div className="text-sm font-bold text-green-900">
               {stats.countRate} /s
             </div>
           </div>
-          <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 h-16 flex flex-col justify-center">
+          <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 flex flex-col items-center justify-center text-center">
             <div className="font-semibold text-purple-800 text-xs">平均値</div>
             <div className="text-sm font-bold text-purple-900">
               {stats.mean}
             </div>
-          </div>
-          <div className="bg-orange-50 p-3 rounded-lg border border-orange-200 h-16 flex flex-col justify-center">
-            <div className="font-semibold text-orange-800 text-xs">中央値</div>
-            <div className="text-sm font-bold text-orange-900">
-              {stats.median}
-            </div>
-          </div>
-          <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 h-16 flex flex-col justify-center">
-            <div className="font-semibold text-yellow-800 text-xs">最小値</div>
-            <div className="text-sm font-bold text-yellow-900">{stats.min}</div>
-          </div>
-          <div className="bg-red-50 p-3 rounded-lg border border-red-200 h-16 flex flex-col justify-center">
-            <div className="font-semibold text-red-800 text-xs">最大値</div>
-            <div className="text-sm font-bold text-red-900">{stats.max}</div>
           </div>
         </div>
       )}

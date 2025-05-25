@@ -9,13 +9,19 @@ import { checkIsDesktop } from "./common/utils/platform";
 import { DataHistograms } from "./common/components/DataHistograms";
 import { generateDemoData, resetDemoDataState } from "./common/utils/demoData";
 import { UpdateChecker } from "./common/components/UpdateChecker";
+import { LayoutSelector } from "./common/components/LayoutSelector";
+import { useResponsiveLayout } from "./common/hooks/useResponsiveLayout";
 import {
   ExclamationTriangleIcon,
   PlayIcon,
   StopIcon,
   LightBulbIcon,
 } from "@heroicons/react/24/solid";
-import { TableCellsIcon, CodeBracketIcon } from "@heroicons/react/24/outline";
+import {
+  TableCellsIcon,
+  CodeBracketIcon,
+  Squares2X2Icon,
+} from "@heroicons/react/24/outline";
 import { MarkGithubIcon } from "@primer/octicons-react";
 
 // データ関連の状態をグループ化する型
@@ -35,6 +41,10 @@ interface FileSettings {
 }
 
 function App() {
+  // レスポンシブレイアウト管理
+  const { layout, userPreference, setUserPreference, isAuto } =
+    useResponsiveLayout();
+
   // 測定データの状態管理（グループ化）
   const [data, setData] = useState<MeasurementData>({
     raw: [],
@@ -191,17 +201,40 @@ function App() {
     };
   }, [isDemoMode, handleDataReceived]);
 
+  // レイアウトに応じたクラス名を生成
+  const getLayoutClasses = () => {
+    switch (layout) {
+      case "full-sidebar":
+        return {
+          container: "flex flex-1 flex-row overflow-hidden",
+          sidebar:
+            "w-96 bg-white border-r border-gray-200 flex flex-col overflow-hidden",
+          mainContent: "flex-1 overflow-y-auto",
+        };
+      case "mobile":
+      default:
+        return {
+          container: "flex flex-1 flex-col",
+          sidebar:
+            "bg-gray-50 border-b border-gray-200 flex flex-col flex-shrink-0",
+          mainContent: "flex-1 overflow-y-auto bg-gray-50",
+        };
+    }
+  };
+
+  const layoutClasses = getLayoutClasses();
+
   return (
     <div className="h-screen flex flex-col bg-gray-100">
       {/* 上部固定ヘッダー */}
       <div className="bg-white shadow-[0_2px_8px_2px_rgba(0,0,0,0.1)] border-b border-gray-200 px-6 py-4 flex-shrink-0 relative z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            {/* <img
-              src="/icon.png"
+            <img
+              src={`${import.meta.env.BASE_URL}icon.png`}
               alt="CosmicWatch icon"
               className="h-10 w-10 mr-3 rounded-lg shadow-md"
-            /> */}
+            />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
                 CosmicWatch Recorder
@@ -219,6 +252,18 @@ function App() {
                 デモモード中
               </span>
             )}
+            <div className="flex items-center space-x-2">
+              <Squares2X2Icon className="h-5 w-5 text-gray-500" />
+              <span className="text-xs text-gray-500 hidden sm:inline">
+                レイアウト:
+              </span>
+              <LayoutSelector
+                currentLayout={layout}
+                userPreference={userPreference}
+                isAuto={isAuto}
+                onLayoutChange={setUserPreference}
+              />
+            </div>
             <button
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 isDemoMode
@@ -249,10 +294,14 @@ function App() {
       </div>
 
       {/* メインコンテンツエリア */}
-      <div className="flex flex-1 flex-col xl:flex-row xl:overflow-hidden">
+      <div className={layoutClasses.container}>
         {/* 左側サイドバー（レスポンシブ） */}
-        <div className="xl:w-96 bg-white xl:border-r border-gray-200 flex flex-col xl:overflow-hidden">
-          <div className="xl:flex-1 xl:overflow-y-auto p-6 space-y-6">
+        <div className={layoutClasses.sidebar}>
+          <div
+            className={`${
+              layout === "mobile" ? "p-6" : "flex-1 overflow-y-auto p-6"
+            } space-y-6`}
+          >
             {/* 注意・ヒント */}
             <div className="p-6 bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)]">
               <SectionTitle>
@@ -323,7 +372,7 @@ function App() {
         </div>
 
         {/* 右側メインコンテンツエリア（スクロール可能） */}
-        <div className="flex-1 xl:overflow-y-auto">
+        <div className={layoutClasses.mainContent}>
           <div className="p-6 space-y-6">
             {/* 3. データ解析（ヒストグラム） */}
             <div className="bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)] overflow-hidden">

@@ -9,6 +9,7 @@ interface CountRateChartProps {
   startTime: Date | null;
   dataPoints: number;
   setDataPoints: (points: number) => void;
+  graphLayout?: "vertical" | "horizontal";
 }
 
 export const CountRateChart = ({
@@ -16,6 +17,7 @@ export const CountRateChart = ({
   startTime,
   dataPoints,
   setDataPoints,
+  graphLayout = "vertical",
 }: CountRateChartProps) => {
   // ズーム状態を保持
   const [zoomState, setZoomState] = useState<any>(null);
@@ -115,24 +117,24 @@ export const CountRateChart = ({
     let tickFormat: string;
     let title: string;
 
-    if (timeRangeMs < 5 * 60 * 1000) {
-      // 5分未満: 秒表示
+    if (timeRangeMs < 3 * 60 * 1000) {
+      // 3分未満: 秒表示
       tickFormat = "%H:%M:%S";
       title = "時刻 (HH:MM:SS)";
-    } else if (timeRangeMs < 6 * 60 * 60 * 1000) {
-      // 6時間未満: 分表示
+    } else if (timeRangeMs < 12 * 60 * 60 * 1000) {
+      // 12時間未満: 分表示
       tickFormat = "%H:%M";
       title = "時刻 (HH:MM)";
     } else if (timeRangeMs < 7 * 24 * 60 * 60 * 1000) {
       // 7日未満: 時間表示
       tickFormat = "%m/%d %H:%M";
       title = "日時 (MM/DD HH:MM)";
-    } else if (timeRangeMs < 3 * 30 * 24 * 60 * 60 * 1000) {
-      // 3ヶ月未満: 日表示
+    } else if (timeRangeMs < 6 * 30 * 24 * 60 * 60 * 1000) {
+      // 6ヶ月未満: 日表示
       tickFormat = "%m/%d";
       title = "日付 (MM/DD)";
     } else {
-      // 3ヶ月以上: 月表示
+      // 6ヶ月以上: 月表示
       tickFormat = "%Y/%m";
       title = "年月 (YYYY/MM)";
     }
@@ -146,29 +148,8 @@ export const CountRateChart = ({
             mean: (
               validRates.reduce((a, b) => a + b, 0) / validRates.length
             ).toFixed(4),
-            median: (() => {
-              const sortedRates = [...validRates].sort((a, b) => a - b);
-              const mid = Math.floor(sortedRates.length / 2);
-              if (sortedRates.length % 2 === 0) {
-                return ((sortedRates[mid - 1] + sortedRates[mid]) / 2).toFixed(
-                  4
-                );
-              } else {
-                return sortedRates[mid].toFixed(4);
-              }
-            })(),
             min: Math.min(...validRates).toFixed(4),
             max: Math.max(...validRates).toFixed(4),
-            stdDev: (() => {
-              const mean =
-                validRates.reduce((a, b) => a + b, 0) / validRates.length;
-              const variance =
-                validRates.reduce(
-                  (acc, rate) => acc + Math.pow(rate - mean, 2),
-                  0
-                ) / validRates.length;
-              return Math.sqrt(variance).toFixed(4);
-            })(),
             totalEvents: data.length,
             validEvents: sortedData.length, // パース成功したイベント数
             avgRate:
@@ -223,6 +204,12 @@ export const CountRateChart = ({
         font: { size: 14, color: "#555" },
       },
       tickformat: countRateData.tickFormat || "%H:%M:%S",
+      tickangle:
+        countRateData.tickFormat === "%m/%d %H:%M" ||
+        countRateData.tickFormat === "%m/%d" ||
+        countRateData.tickFormat === "%Y/%m"
+          ? -45
+          : 0,
       gridcolor: "#e2e8f0",
       tickfont: { size: 12 },
     },
@@ -260,7 +247,7 @@ export const CountRateChart = ({
       {
         x: lastDate,
         y: countRateData.stats.avgRate,
-        text: "平均レート",
+        text: "平均値",
         showarrow: true,
         arrowhead: 2,
         ax: 40,
@@ -304,8 +291,14 @@ export const CountRateChart = ({
       {/* 統計情報 */}
       {countRateData.stats && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 text-center text-sm">
-            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 h-16 flex flex-col justify-center">
+          <div
+            className={`grid gap-2 text-sm ${
+              graphLayout === "horizontal"
+                ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+            }`}
+          >
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex flex-col items-center justify-center text-center">
               <div className="font-semibold text-blue-800 text-xs">
                 総イベント数
               </div>
@@ -313,21 +306,13 @@ export const CountRateChart = ({
                 {countRateData.stats.totalEvents}
               </div>
             </div>
-            <div className="bg-green-50 p-3 rounded-lg border border-green-200 h-16 flex flex-col justify-center">
+            <div className="bg-green-50 p-3 rounded-lg border border-green-200 flex flex-col items-center justify-center text-center">
               <div className="font-semibold text-green-800 text-xs">平均値</div>
               <div className="text-sm font-bold text-green-900">
                 {countRateData.stats.mean} /s
               </div>
             </div>
-            <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 h-16 flex flex-col justify-center">
-              <div className="font-semibold text-purple-800 text-xs">
-                中央値
-              </div>
-              <div className="text-sm font-bold text-purple-900">
-                {countRateData.stats.median} /s
-              </div>
-            </div>
-            <div className="bg-orange-50 p-3 rounded-lg border border-orange-200 h-16 flex flex-col justify-center">
+            <div className="bg-orange-50 p-3 rounded-lg border border-orange-200 flex flex-col items-center justify-center text-center">
               <div className="font-semibold text-orange-800 text-xs">
                 最大値
               </div>
@@ -335,7 +320,7 @@ export const CountRateChart = ({
                 {countRateData.stats.max} /s
               </div>
             </div>
-            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 h-16 flex flex-col justify-center">
+            <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 flex flex-col items-center justify-center text-center">
               <div className="font-semibold text-yellow-800 text-xs">
                 最小値
               </div>
