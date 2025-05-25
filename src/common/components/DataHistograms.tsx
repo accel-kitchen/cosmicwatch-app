@@ -3,7 +3,7 @@ import { CosmicWatchData } from "../../shared/types";
 import { SectionTitle } from "./Layout";
 import { ChartBarIcon, ClockIcon, CogIcon } from "@heroicons/react/24/outline";
 import { ADCHistogram } from "./ADCHistogram";
-import { TimeHistogram } from "./TimeHistogram";
+import { CountRateChart } from "./CountRateChart";
 
 interface DataHistogramsProps {
   data: CosmicWatchData[];
@@ -16,9 +16,9 @@ export const DataHistograms = ({ data, startTime }: DataHistogramsProps) => {
   const timerRef = useRef<number | null>(null);
   const [updateInterval, setUpdateInterval] = useState<number>(10); // 秒単位
 
-  // ヒストグラム設定の状態
+  // ヒストグラム/チャート設定の状態
   const [adcBinSize, setAdcBinSize] = useState(20);
-  const [timeBinSize, setTimeBinSize] = useState(20); // ms単位
+  const [countRateDataPoints, setCountRateDataPoints] = useState(10); // カウントレートのデータ点数
 
   // 更新周期は選択可能
   useEffect(() => {
@@ -59,7 +59,7 @@ export const DataHistograms = ({ data, startTime }: DataHistogramsProps) => {
           <ChartBarIcon className="h-12 w-12 text-gray-300" />
           <p className="text-lg">データ受信待ち...</p>
           <p className="text-sm">
-            CosmicWatchからデータを受信すると、ここにヒストグラムが表示されます
+            CosmicWatchからデータを受信すると、ここにヒストグラムとチャートが表示されます
           </p>
         </div>
       </div>
@@ -144,12 +144,12 @@ export const DataHistograms = ({ data, startTime }: DataHistogramsProps) => {
             />
           </div>
 
-          {/* 時刻ヒストグラム */}
+          {/* カウントレートチャート */}
           <div className="min-w-0 pt-6 2xl:pt-0 2xl:pl-6">
-            <TimeHistogram
+            <CountRateChart
               data={samples}
-              binSize={timeBinSize}
-              setBinSize={setTimeBinSize}
+              dataPoints={countRateDataPoints}
+              setDataPoints={setCountRateDataPoints}
               startTime={startTime}
             />
           </div>
