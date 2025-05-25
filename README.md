@@ -1,4 +1,4 @@
-# CosmicWatch Data Recorder
+# CosmicWatch Recorder
 
 > 宇宙線検出器CosmicWatchのデータ記録・解析アプリケーション
 

@@ -240,7 +240,7 @@ function App() {
                 CosmicWatch Recorder
               </h1>
               <p className="text-sm text-gray-600">
-                宇宙線検出器データ記録・解析アプリケーション
+                宇宙線検出器データ記録・解析アプリ
               </p>
             </div>
           </div>
