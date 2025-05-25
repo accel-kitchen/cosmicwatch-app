@@ -10,14 +10,22 @@ import {
 import { ADCHistogram } from "./ADCHistogram";
 import { CountRateChart } from "./CountRateChart";
 
+// Redux関連のimport
+import { useAppSelector } from "../../store/hooks";
+import { selectDataHistogramsData } from "../../store/selectors";
+
 type GraphLayoutType = "auto" | "vertical" | "horizontal";
 
-interface DataHistogramsProps {
-  data: CosmicWatchData[];
-  startTime: Date | null;
-}
+export const DataHistograms = () => {
+  // Redux storeからデータを取得 - 統合selectorを使用
+  const {
+    parsedData: data,
+    histogramData,
+    measurementTimes,
+    statistics,
+  } = useAppSelector(selectDataHistogramsData);
+  const { startTime } = measurementTimes;
 
-export const DataHistograms = ({ data, startTime }: DataHistogramsProps) => {
   const [samples, setSamples] = useState<CosmicWatchData[]>([]);
   const lastRef = useRef<number>(Date.now());
   const timerRef = useRef<number | null>(null);

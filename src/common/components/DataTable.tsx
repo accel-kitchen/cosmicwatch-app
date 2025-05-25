@@ -1,17 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import {
   flexRender,
   getCoreRowModel,
   useReactTable,
   ColumnDef,
-  SortingState,
 } from "@tanstack/react-table";
 import { CosmicWatchData } from "../../shared/types";
-import { useSortedData } from "../hooks/useSortedData";
 
-interface DataTableProps {
-  data: CosmicWatchData[];
-}
+// Redux関連のimport
+import { useAppSelector } from "../../store/hooks";
+import { selectDataTableData } from "../../store/selectors";
 
 /**
  * セルの値をフォーマットする関数
@@ -110,30 +108,23 @@ const EmptyDataDisplay = () => (
   </div>
 );
 
-export const DataTable = ({ data }: DataTableProps) => {
-  // ソート済みのデータ（最新100件、event降順）
-  const sortedData = useSortedData(data);
+/**
+ * データテーブルコンポーネント（メモ化済み）
+ */
+export const DataTable = memo(() => {
+  // Redux storeから表示用データを取得（統合selector使用）
+  const { displayData, hasData, sampleData } =
+    useAppSelector(selectDataTableData);
 
-  // サンプルデータに基づいた列定義
-  const columns = useColumnsDefinition(sortedData[0]);
+  // 列定義を生成（サンプルデータを使用）
+  const columns = useColumnsDefinition(sampleData);
 
-  // デフォルトのソート状態（eventの降順）
-  const initialSortState: SortingState = [{ id: "event", desc: true }];
-
-  // テーブル初期化
+  // React Tableの設定
   const table = useReactTable({
-    data: sortedData,
+    data: displayData,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    initialState: {
-      sorting: initialSortState,
-    },
   });
-
-  // データがない場合
-  if (sortedData.length === 0) {
-    return <EmptyDataDisplay />;
-  }
 
   return (
     <div className="overflow-x-auto">
@@ -159,37 +150,21 @@ export const DataTable = ({ data }: DataTableProps) => {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              className="hover:bg-gray-50 transition-colors duration-150 ease-in-out"
-            >
-              {row.getVisibleCells().map((cell) => {
-                const value = cell.getValue();
-                const isNumeric = typeof value === "number";
-                const columnId = cell.column.id;
-
-                // 配置を決定
-                let textAlign: "left" | "center" | "right" = "left";
-                if (columnId === "date") {
-                  textAlign = "center";
-                } else if (isNumeric) {
-                  textAlign = "right";
-                }
-
-                return (
-                  <td
-                    key={cell.id}
-                    className="px-4 py-3 whitespace-nowrap text-sm text-gray-700"
-                    style={{ textAlign }}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                );
-              })}
+            <tr key={row.id} className="hover:bg-gray-50">
+              {row.getVisibleCells().map((cell) => (
+                <td
+                  key={cell.id}
+                  className="px-4 py-3 text-center text-sm text-gray-900 whitespace-nowrap"
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
-};
+});
+
+DataTable.displayName = "DataTable";

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { check } from "@tauri-apps/plugin-updater";
 import { PlatformService } from "../services/PlatformService";
+import { ErrorHandler } from "../services/ErrorHandlingService";
 import {
   ArrowDownTrayIcon,
   CheckCircleIcon,
@@ -78,16 +79,15 @@ export const UpdateChecker = ({ platformService }: UpdateCheckerProps) => {
         }, 3000);
       }
     } catch (error) {
-      console.error("Update check failed:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "アップデート確認に失敗しました";
+      const appError = ErrorHandler.updateCheck(
+        "アップデート確認に失敗しました",
+        error instanceof Error ? error : new Error(String(error))
+      );
 
       setUpdateState((prev) => ({
         ...prev,
         isChecking: false,
-        error: errorMessage,
+        error: appError.message,
         isVisible: true,
       }));
 
@@ -128,14 +128,15 @@ export const UpdateChecker = ({ platformService }: UpdateCheckerProps) => {
         }));
       }
     } catch (error) {
-      console.error("Update installation failed:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "アップデートに失敗しました";
+      const appError = ErrorHandler.updateCheck(
+        "アップデートのインストールに失敗しました",
+        error instanceof Error ? error : new Error(String(error))
+      );
 
       setUpdateState((prev) => ({
         ...prev,
         isUpdating: false,
-        error: errorMessage,
+        error: appError.message,
       }));
     }
   };

@@ -1,147 +1,207 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { SerialPortState, PortInfo } from "../../shared/types";
-import { CosmicWatchDataService } from "../services/CosmicWatchDataService";
+import { useCallback, useRef, useEffect } from "react";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import {
+  connectSerialPort,
+  reconnectSerialPort,
+  disconnectSerialPort,
+  clearError,
+} from "../../store/slices/serialPortSlice";
+import { selectConnectionStatus } from "../../store/selectors";
 
-// シリアルポートの設定
-const DEFAULT_SERIAL_OPTIONS = {
-  baudRate: 9600,
-  dataBits: 8 as const,
-  stopBits: 1 as const,
-  parity: "none" as const,
-  bufferSize: 255,
-};
+// デバッグログ用フラグ
+const DEBUG = false;
 
-// デバッグモード設定
-const DEBUG = true;
-
-/**
- * デバッグログ出力関数
- */
 const log = (...args: any[]) => {
   if (DEBUG) {
-    console.log("[SerialPort]", ...args);
+    console.log("[useSerialPort]", ...args);
   }
 };
 
 /**
- * 拡張されたシリアルポート状態の型
- */
-interface SerialPortStatus extends SerialPortState {
-  portInfo: PortInfo | null;
-  connecting: boolean;
-  disconnecting: boolean;
-  lastConnectedPort: SerialPort | null; // 最後に接続したポートを追跡
-}
-
-/**
- * シリアルポート通信を管理するフック
+ * シリアルポート通信を管理するフック（createAsyncThunk統一版）
  */
 export const useSerialPort = (onDataReceived: (data: string) => void) => {
-  // 状態管理
-  const [status, setStatus] = useState<SerialPortStatus>({
-    port: null,
-    reader: null,
-    writer: null,
-    isConnected: false,
-    error: null,
-    portInfo: null,
-    connecting: false,
-    disconnecting: false,
-    lastConnectedPort: null,
-  });
+  // Redux hooks
+  const dispatch = useAppDispatch();
+  const connectionStatus = useAppSelector(selectConnectionStatus);
 
-  // クリーンアップフラグ参照
+  // ローカル状態（非シリアライズ可能オブジェクト）
+  const portRef = useRef<SerialPort | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader | null>(null);
+  const writerRef = useRef<WritableStreamDefaultWriter | null>(null);
+  const lastConnectedPortRef = useRef<SerialPort | null>(null);
   const cleanupRef = useRef(false);
 
   /**
    * シリアルポートを開いて接続する
    */
   const connect = useCallback(async () => {
-    // 既に接続中または接続処理中なら何もしない
-    if (status.isConnected || status.connecting) {
+    log("connect関数が呼び出されました");
+    log("現在の接続状態:", {
+      isConnected: connectionStatus.isConnected,
+      isConnecting: connectionStatus.isConnecting,
+    });
+
+    if (connectionStatus.isConnected || connectionStatus.isConnecting) {
+      log("既に接続中または接続済みのため、処理をスキップします");
       return;
     }
 
-    setStatus((prev) => ({ ...prev, connecting: true, error: null }));
     cleanupRef.current = false;
 
+    // Web Serial APIサポートチェック
+    if (!navigator.serial) {
+      throw new Error("このブラウザはWebSerial APIに対応していません");
+    }
+
+    let port: SerialPort;
+    let portInfo: SerialPortInfo;
+
     try {
-      log("WebSerial APIの確認中...");
-      if (!navigator.serial) {
-        throw new Error("このブラウザはWebSerial APIに対応していません");
+      // ユーザージェスチャーが必要なAPIを即座に呼び出す（他の処理を挟まない）
+      // Bluetoothデバイスを除外してUSBシリアルポートのみを表示
+      log("navigator.serial.requestPort()を呼び出します...");
+      const requestOptions = {
+        filters: [
+          // USBシリアルデバイスのみを対象とする
+          { usbVendorId: 0x2341 }, // Arduino
+          { usbVendorId: 0x1a86 }, // CH340/CH341 (よく使われるUSB-シリアル変換チップ)
+          { usbVendorId: 0x0403 }, // FTDI
+          { usbVendorId: 0x10c4 }, // Silicon Labs CP210x
+          { usbVendorId: 0x067b }, // Prolific
+        ],
+      };
+
+      try {
+        // まずフィルター付きで試行
+        port = await navigator.serial.requestPort(requestOptions);
+        log("ポート選択完了（フィルター付き）:", port);
+      } catch (filteredError) {
+        // ユーザーキャンセルの場合は再試行しない
+        if (
+          filteredError instanceof Error &&
+          filteredError.name === "NotFoundError"
+        ) {
+          log("ユーザーがポート選択をキャンセル（フィルター付き）");
+          throw filteredError;
+        }
+
+        log(
+          "フィルター付きポート選択失敗、フィルターなしで再試行:",
+          filteredError
+        );
+        // フィルター付きで失敗した場合、フィルターなしで再試行
+        port = await navigator.serial.requestPort();
+        log("ポート選択完了（フィルターなし）:", port);
       }
 
-      log("ポート選択ダイアログを表示...");
-      const port = await navigator.serial.requestPort();
-      const portInfo = port.getInfo();
-      log("選択されたポート情報:", portInfo);
+      portInfo = port.getInfo();
+      log("ポート情報:", portInfo);
+    } catch (error) {
+      log("ポート選択エラー:", error);
+      // ポート選択のエラーは即座に再スロー
+      throw error;
+    }
 
-      log("ポートを開いています...", DEFAULT_SERIAL_OPTIONS);
-      await port.open(DEFAULT_SERIAL_OPTIONS);
-      log("ポートが正常に開かれました");
+    try {
+      // ポート選択後の処理（ユーザージェスチャー不要）
+      const serialOptions = {
+        baudRate: 9600,
+        dataBits: 8 as const,
+        stopBits: 1 as const,
+        parity: "none" as const,
+        bufferSize: 255,
+      };
 
-      // シリアルポートの初期化待機
+      log("ポートを開きます...", serialOptions);
+      await port.open(serialOptions);
+      log("ポートが開かれました");
+
       await new Promise((resolve) => setTimeout(resolve, 100));
+      log("100ms待機完了");
 
       if (!port.readable || !port.writable) {
         throw new Error("ポートの読み取り/書き込みストリームが利用できません");
       }
 
-      const textDecoder = new TextDecoder();
+      log("ストリームを取得します...");
       const reader = port.readable.getReader();
       const writer = port.writable.getWriter();
-      log("リーダーとライターを作成しました");
+      log("ストリーム取得完了");
 
-      setStatus({
-        port,
-        reader,
-        writer,
-        isConnected: true,
-        error: null,
-        portInfo,
-        connecting: false,
-        disconnecting: false,
-        lastConnectedPort: port, // 最後に接続したポートを保存
-      });
+      // ローカル参照を更新
+      portRef.current = port;
+      readerRef.current = reader;
+      writerRef.current = writer;
+      lastConnectedPortRef.current = port;
+      log("ローカル参照を更新しました");
 
+      // createAsyncThunkで状態のみ更新
+      log("createAsyncThunkで状態を更新します...");
+      await dispatch(
+        connectSerialPort({
+          portInfo: portInfo,
+        })
+      ).unwrap();
+
+      log("接続完了 - createAsyncThunkで状態管理済み");
       log("データ読み取りループを開始...");
-      readLoop(reader, textDecoder);
+      readLoop(reader, new TextDecoder());
     } catch (error) {
-      log("接続エラー:", error);
-      setStatus((prev) => ({
-        ...prev,
-        error:
-          error instanceof Error ? error.message : "不明なエラーが発生しました",
-        connecting: false,
-      }));
+      log("接続処理エラー:", error);
+      // ポートが開かれている場合はクローズ
+      if (port) {
+        try {
+          await port.close();
+        } catch (closeError) {
+          log("ポートクローズエラー:", closeError);
+        }
+      }
+      // エラーの詳細情報も出力
+      if (error instanceof Error) {
+        log("エラー名:", error.name);
+        log("エラーメッセージ:", error.message);
+        log("エラースタック:", error.stack);
+      }
+      // エラーを上位に再スロー
+      throw error;
     }
-  }, [status.isConnected, status.connecting]);
+  }, [connectionStatus.isConnected, connectionStatus.isConnecting, dispatch]);
 
   /**
    * 最後に接続したポートに再接続する
    */
   const reconnect = useCallback(async () => {
-    // 既に接続中、接続処理中、または最後に接続したポートがない場合は何もしない
-    if (status.isConnected || status.connecting || !status.lastConnectedPort) {
-      log("再接続できません: 既に接続中か、前回の接続情報がありません");
+    if (
+      connectionStatus.isConnected ||
+      connectionStatus.isConnecting ||
+      !connectionStatus.hasLastConnectedPort ||
+      !lastConnectedPortRef.current
+    ) {
+      log("再接続できません");
       return;
     }
 
-    setStatus((prev) => ({ ...prev, connecting: true, error: null }));
     cleanupRef.current = false;
 
     try {
-      log("前回接続したポートに再接続しています...");
-      const port = status.lastConnectedPort;
-      const portInfo = port.getInfo();
+      const port = lastConnectedPortRef.current;
+      if (!port) {
+        throw new Error("前回の接続ポートが見つかりません");
+      }
+
+      // デフォルト設定でポートを再開
+      const serialOptions = {
+        baudRate: 9600,
+        dataBits: 8 as const,
+        stopBits: 1 as const,
+        parity: "none" as const,
+        bufferSize: 255,
+      };
 
       // ポートが閉じている場合のみ開く
       if (!port.readable || !port.writable) {
-        log("ポートを開いています...", DEFAULT_SERIAL_OPTIONS);
-        await port.open(DEFAULT_SERIAL_OPTIONS);
-        log("ポートが正常に開かれました");
-
-        // シリアルポートの初期化待機
+        await port.open(serialOptions);
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
@@ -149,37 +209,35 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
         throw new Error("ポートの読み取り/書き込みストリームが利用できません");
       }
 
-      const textDecoder = new TextDecoder();
       const reader = port.readable.getReader();
       const writer = port.writable.getWriter();
-      log("リーダーとライターを作成しました");
 
-      setStatus({
-        port,
-        reader,
-        writer,
-        isConnected: true,
-        error: null,
-        portInfo,
-        connecting: false,
-        disconnecting: false,
-        lastConnectedPort: port,
-      });
+      // ローカル参照を更新
+      portRef.current = port;
+      readerRef.current = reader;
+      writerRef.current = writer;
 
+      // createAsyncThunkで状態のみ更新
+      await dispatch(
+        reconnectSerialPort({
+          portInfo: port.getInfo(),
+        })
+      ).unwrap();
+
+      log("再接続完了 - createAsyncThunkで状態管理済み");
       log("データ読み取りループを開始...");
-      readLoop(reader, textDecoder);
+      readLoop(reader, new TextDecoder());
     } catch (error) {
       log("再接続エラー:", error);
-      setStatus((prev) => ({
-        ...prev,
-        error:
-          error instanceof Error
-            ? error.message
-            : "再接続中に不明なエラーが発生しました",
-        connecting: false,
-      }));
+      // エラーを上位に再スロー
+      throw error;
     }
-  }, [status.isConnected, status.connecting, status.lastConnectedPort]);
+  }, [
+    connectionStatus.isConnected,
+    connectionStatus.isConnecting,
+    connectionStatus.hasLastConnectedPort,
+    dispatch,
+  ]);
 
   /**
    * データ読み取りループ
@@ -201,21 +259,18 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
         }
 
         if (value) {
-          // データチャンクをデコード
           const chunk = decoder.decode(value, { stream: true });
           log("データ受信:", chunk);
           buffer += chunk;
 
-          // データを行ごとに処理
           const lines = buffer.split(/\r?\n/);
-          buffer = lines.pop() || ""; // 最後の不完全な行を次の読み取りのために保持
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
             if (line.trim()) {
-              // 行が空でなければ処理
               try {
-                // データ形式を検証し、必要に応じてコメント化
-                validateAndProcessLine(line, onDataReceived);
+                // コールバックでデータ処理を委譲（重複処理を回避）
+                onDataReceived(line);
               } catch (err) {
                 log("行の処理中にエラーが発生:", err);
               }
@@ -225,120 +280,71 @@ export const useSerialPort = (onDataReceived: (data: string) => void) => {
       }
     } catch (error) {
       if (!cleanupRef.current) {
-        log("読み取りループエラー:", error);
-        setStatus((prev) => ({
-          ...prev,
-          error:
-            error instanceof Error
-              ? error.message
-              : "データ読み取り中にエラーが発生しました",
-        }));
+        log("データ読み取り中にエラー:", error);
+        // 読み取りエラーが発生した場合は切断処理を実行
+        disconnect();
       }
     } finally {
       log("読み取りループを終了しました");
-      // ここではリーダーをクローズしない。disconnect内で適切に処理される
     }
   };
 
   /**
-   * データ行の検証と処理
-   */
-  const validateAndProcessLine = (
-    line: string,
-    callback: (data: string) => void
-  ) => {
-    // 新しいサービスクラスを使用してデータ行を処理
-    const processedLine = CosmicWatchDataService.processDataLine(line);
-    log("処理済みデータ行:", processedLine);
-    callback(processedLine);
-  };
-
-  /**
-   * シリアルポート接続を切断
+   * シリアルポートを切断する
    */
   const disconnect = useCallback(async () => {
-    if (!status.isConnected || status.disconnecting) {
+    if (!connectionStatus.isConnected) {
+      log("既に切断されています");
       return;
     }
 
-    setStatus((prev) => ({ ...prev, disconnecting: true }));
     cleanupRef.current = true;
 
     try {
-      log("切断処理を開始...");
+      // createAsyncThunkで切断処理を実行
+      await dispatch(
+        disconnectSerialPort({
+          port: portRef.current || undefined,
+          reader: readerRef.current || undefined,
+          writer: writerRef.current || undefined,
+        })
+      ).unwrap();
 
-      if (status.reader) {
-        log("リーダーをキャンセル中");
-        try {
-          await status.reader.cancel();
-        } catch (err) {
-          log("リーダーのキャンセル中にエラー:", err);
-        }
-      }
+      // ローカル参照をクリア
+      portRef.current = null;
+      readerRef.current = null;
+      writerRef.current = null;
 
-      if (status.writer) {
-        log("ライターをクローズ中");
-        try {
-          await status.writer.close();
-        } catch (err) {
-          log("ライターのクローズ中にエラー:", err);
-        }
-      }
-
-      if (status.port) {
-        log("ポートをクローズ中");
-        try {
-          await status.port.close();
-        } catch (err) {
-          log("ポートのクローズ中にエラー:", err);
-        }
-      }
-
-      log("切断処理完了");
+      log("切断が完了しました - ローカル参照もクリアしました");
     } catch (error) {
-      log("切断中にエラーが発生:", error);
-    } finally {
-      // 接続状態をリセット（ただし最後に接続したポートの情報は保持）
-      setStatus((prev) => ({
-        port: null,
-        reader: null,
-        writer: null,
-        isConnected: false,
-        error: null,
-        portInfo: prev.portInfo, // ポート情報は保持
-        connecting: false,
-        disconnecting: false,
-        lastConnectedPort: prev.lastConnectedPort, // 最後に接続したポートを保持
-      }));
+      log("切断エラー:", error);
     }
-  }, [
-    status.isConnected,
-    status.disconnecting,
-    status.port,
-    status.reader,
-    status.writer,
-  ]);
+  }, [connectionStatus.isConnected, dispatch]);
 
-  // コンポーネントのアンマウント時にクリーンアップ
+  /**
+   * エラーをクリアする
+   */
+  const clearConnectionError = useCallback(() => {
+    dispatch(clearError());
+  }, [dispatch]);
+
+  // クリーンアップ
   useEffect(() => {
     return () => {
-      if (status.isConnected) {
-        log("コンポーネントのアンマウントによるクリーンアップ");
-        cleanupRef.current = true;
-        disconnect();
-      }
+      cleanupRef.current = true;
     };
-  }, [status.isConnected, disconnect]);
+  }, []);
 
   return {
-    isConnected: status.isConnected,
-    isConnecting: status.connecting,
-    isDisconnecting: status.disconnecting,
-    error: status.error,
-    portInfo: status.portInfo,
-    hasLastConnectedPort: !!status.lastConnectedPort,
+    isConnected: connectionStatus.isConnected,
+    isConnecting: connectionStatus.isConnecting,
+    isDisconnecting: connectionStatus.isDisconnecting,
+    error: connectionStatus.error,
+    portInfo: connectionStatus.portInfo,
+    hasLastConnectedPort: connectionStatus.hasLastConnectedPort,
     connect,
     disconnect,
     reconnect,
+    clearError: clearConnectionError,
   };
 };

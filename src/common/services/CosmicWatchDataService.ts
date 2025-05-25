@@ -1,4 +1,5 @@
 import { CosmicWatchData } from "../../shared/types";
+import { ErrorHandler } from "./ErrorHandlingService";
 
 /**
  * 現在時刻を「YYYY-MM-DD-HH-MM-SS.MS」形式の文字列に変換する
@@ -39,13 +40,14 @@ export class CosmicWatchDataService {
   static parseRawData(line: string): CosmicWatchData | null {
     // コメント行はnullを返す
     if (line.startsWith("#")) {
-      if (this.DEBUG) console.log("Skipping comment line:", line);
+      if (CosmicWatchDataService.DEBUG)
+        console.log("Skipping comment line:", line);
       return null;
     }
 
     try {
       const parts = line.trim().split(/\s+/); // タブまたはスペースで分割
-      if (this.DEBUG) console.log("Split parts:", parts);
+      if (CosmicWatchDataService.DEBUG) console.log("Split parts:", parts);
 
       // 現在のPC時刻を取得
       const pcTimestamp = getCurrentTimestampString();
@@ -85,11 +87,16 @@ export class CosmicWatchDataService {
             press: parseFloat(parts[8]),
           };
         default:
-          if (this.DEBUG) console.log("Invalid number of parts:", parts.length);
+          if (CosmicWatchDataService.DEBUG)
+            console.log("Invalid number of parts:", parts.length);
           return null;
       }
     } catch (error) {
-      console.error("Data parse error:", error, "for line:", line);
+      ErrorHandler.dataParsing(
+        "データのパースに失敗しました",
+        error instanceof Error ? error : new Error(String(error)),
+        { line }
+      );
       return null;
     }
   }

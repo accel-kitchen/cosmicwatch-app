@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, memo } from "react";
 import { useSerialPort } from "../hooks/useSerialPort";
 import { SectionTitle } from "./Layout";
 import {
@@ -10,21 +10,72 @@ import {
   BoltSlashIcon,
 } from "@heroicons/react/24/solid";
 
-interface SerialConnectionProps {
-  onDataReceived: (data: string) => void;
-  onClearData: () => void;
-  onConnectSuccess: () => void;
-  onDisconnect: () => void;
-  isDemoMode: boolean;
-}
+// Redux関連のimport
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import {
+  processSerialData,
+  clearData,
+  stopMeasurement,
+} from "../../store/slices/measurementSlice";
+import { setAutoSavePath } from "../../store/slices/fileSettingsSlice";
+import {
+  selectSerialConnectionData,
+  selectPlatformInfo,
+} from "../../store/selectors";
+import { CosmicWatchDataService } from "../services/CosmicWatchDataService";
 
-export const SerialConnection = ({
-  onDataReceived,
-  onClearData,
-  onConnectSuccess,
-  onDisconnect,
-  isDemoMode,
-}: SerialConnectionProps) => {
+/**
+ * シリアル接続コンポーネント（メモ化済み）
+ */
+export const SerialConnection = memo(() => {
+  // Redux hooks - 統合selectorを使用
+  const dispatch = useAppDispatch();
+  const { connectionStatus, statistics, isRecording } = useAppSelector(
+    selectSerialConnectionData
+  );
+  const { isDemoMode } = useAppSelector(selectPlatformInfo);
+
+  // データ受信ハンドラー（createAsyncThunk統一版）
+  const handleDataReceived = useCallback(
+    async (newData: string) => {
+      try {
+        // createAsyncThunkでデータ処理を統一
+        await dispatch(
+          processSerialData({
+            rawData: newData,
+            parseFunction: CosmicWatchDataService.parseRawData,
+          })
+        ).unwrap();
+      } catch (error) {
+        console.error("データ処理エラー:", error);
+      }
+    },
+    [dispatch]
+  );
+
+  // データクリアハンドラー
+  const handleClearData = useCallback(() => {
+    dispatch(clearData());
+    dispatch(setAutoSavePath(null));
+  }, [dispatch]);
+
+  // 接続成功ハンドラー
+  const handleConnectSuccess = useCallback(() => {
+    // 接続成功時の処理（必要に応じて追加）
+  }, []);
+
+  // 切断ハンドラー（createAsyncThunk統一版）
+  const handleDisconnectAction = useCallback(async () => {
+    try {
+      if (isRecording) {
+        await dispatch(stopMeasurement()).unwrap();
+      }
+      dispatch(setAutoSavePath(null));
+    } catch (error) {
+      console.error("測定終了エラー:", error);
+    }
+  }, [dispatch, isRecording]);
+
   const {
     isConnected,
     isConnecting,
@@ -35,34 +86,54 @@ export const SerialConnection = ({
     connect,
     disconnect,
     reconnect,
-  } = useSerialPort(onDataReceived);
+  } = useSerialPort(handleDataReceived);
 
-  const handleConnect = useCallback(async () => {
-    if (isDemoMode) return;
-    onClearData();
-    try {
-      await connect();
-      onConnectSuccess();
-    } catch (error) {
-      console.error("Connection failed in component:", error);
-    }
-  }, [connect, onClearData, onConnectSuccess, isDemoMode]);
+  // 直接的なクリックハンドラー（ユーザージェスチャーを確実に保持）
+  const handleConnectClick = useCallback(
+    async (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (isDemoMode) {
+        return;
+      }
+
+      try {
+        // 接続処理を実行（ユーザージェスチャーを最優先で使用）
+        await connect();
+        // 接続成功後にデータをクリア
+        handleClearData();
+        handleConnectSuccess();
+      } catch (error) {
+        // ユーザーがポート選択をキャンセルした場合は静かに処理を終了
+        if (error instanceof Error && error.name === "NotFoundError") {
+          return;
+        }
+        console.error("[SerialConnection] Connection failed:", error);
+      }
+    },
+    [connect, handleClearData, handleConnectSuccess, isDemoMode]
+  );
 
   const handleDisconnect = useCallback(async () => {
     await disconnect();
-    onDisconnect();
-  }, [disconnect, onDisconnect]);
+    handleDisconnectAction();
+  }, [disconnect, handleDisconnectAction]);
 
   const handleReconnect = useCallback(async () => {
     if (isDemoMode) return;
-    onClearData();
+    handleClearData();
     try {
       await reconnect();
-      onConnectSuccess();
+      handleConnectSuccess();
     } catch (error) {
-      console.error("Reconnection failed in component:", error);
+      // ユーザーがポート選択をキャンセルした場合は静かに処理を終了
+      if (error instanceof Error && error.name === "NotFoundError") {
+        return;
+      }
+      console.error("Reconnection failed:", error);
     }
-  }, [reconnect, onClearData, onConnectSuccess, isDemoMode]);
+  }, [reconnect, handleClearData, handleConnectSuccess, isDemoMode]);
 
   // 接続ステータステキストとアイコンを決定
   const getStatusDisplay = () => {
@@ -116,7 +187,7 @@ export const SerialConnection = ({
     } else {
       const isDisabled = isConnecting || isDemoMode;
       return {
-        onClick: handleConnect,
+        onClick: handleConnectClick,
         disabled: isDisabled,
         className: `flex items-center px-4 py-2 rounded-md font-medium text-sm transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 ${
           isDisabled
@@ -127,7 +198,7 @@ export const SerialConnection = ({
         icon: BoltIcon,
         title: isDemoMode
           ? "デモモード中は接続できません"
-          : "CosmicWatchに接続",
+          : "CosmicWatchに接続\n※ダイアログが表示されたら、USBシリアルデバイスを選択してください",
       };
     }
   };
@@ -215,6 +286,7 @@ export const SerialConnection = ({
         )}
       </div>
 
+      {/* エラー表示 */}
       {error && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r">
@@ -246,4 +318,6 @@ export const SerialConnection = ({
       )}
     </div>
   );
-};
+});
+
+SerialConnection.displayName = "SerialConnection";

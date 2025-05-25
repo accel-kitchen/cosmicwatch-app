@@ -6,6 +6,15 @@ import {
 import { CosmicWatchData } from "../../shared/types";
 import { CosmicWatchDataService } from "../services/CosmicWatchDataService";
 import { PlatformService } from "../services/PlatformService";
+import { ErrorHandler } from "../services/ErrorHandlingService";
+
+// Redux関連のimport
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import {
+  setSaveDirectory,
+  setAutoSavePath,
+} from "../../store/slices/fileSettingsSlice";
+import { selectAutoSaveData } from "../../store/selectors";
 
 interface AutoSaveOptions {
   isDesktop: boolean;
@@ -32,8 +41,11 @@ export function useAutoSave({
   includeComments,
   platformService,
 }: AutoSaveOptions) {
-  const [saveDirectory, setSaveDirectory] = useState<string>("");
-  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  // Redux hooks
+  const dispatch = useAppDispatch();
+  const { fileSettings } = useAppSelector(selectAutoSaveData);
+
+  // ローカル状態（Redux管理外）
   const [isFileCreated, setIsFileCreated] = useState<boolean>(false);
 
   // 記録開始時のコメント設定を保存（測定中は変更されない）
@@ -45,14 +57,14 @@ export function useAutoSave({
       const setDefaultPath = async () => {
         try {
           const dir = await platformService.getDownloadDirectory();
-          setSaveDirectory(dir);
+          dispatch(setSaveDirectory(dir));
         } catch (error) {
           console.error("Failed to get download directory:", error);
         }
       };
       setDefaultPath();
     }
-  }, [isDesktop, platformService]);
+  }, [isDesktop, platformService, dispatch]);
 
   // 測定開始時にファイルを作成
   useEffect(() => {
@@ -60,7 +72,7 @@ export function useAutoSave({
       isDesktop &&
       measurementStartTime &&
       enabled &&
-      saveDirectory &&
+      fileSettings.saveDirectory &&
       !isFileCreated &&
       platformService
     ) {
@@ -91,7 +103,7 @@ export function useAutoSave({
           const autoSaveSuffix = filenameSuffix ? `_${filenameSuffix}` : "";
           const filename = `${startTimestamp}${autoSaveSuffix}.dat`;
           const fullPath = await platformService.joinPath(
-            saveDirectory,
+            fileSettings.saveDirectory,
             filename
           );
 
@@ -100,11 +112,20 @@ export function useAutoSave({
           console.log("[AutoSave] File created:", fullPath);
 
           // 状態を更新
-          setCurrentFilePath(fullPath);
+          dispatch(setAutoSavePath(fullPath));
           onFileHandleChange(fullPath);
           setIsFileCreated(true);
         } catch (error) {
-          console.error("Failed to create auto-save file:", error);
+          ErrorHandler.fileOperation(
+            "自動保存ファイルの作成に失敗しました",
+            error instanceof Error ? error : new Error(String(error)),
+            {
+              saveDirectory: fileSettings.saveDirectory,
+              filename: `${formatDateForFilename(measurementStartTime)}${
+                filenameSuffix ? `_${filenameSuffix}` : ""
+              }.dat`,
+            }
+          );
           resetState();
         }
       };
@@ -116,13 +137,14 @@ export function useAutoSave({
     isDesktop,
     measurementStartTime,
     enabled,
-    saveDirectory,
+    fileSettings.saveDirectory,
     isFileCreated,
     additionalComment,
     filenameSuffix,
     onFileHandleChange,
     platformService,
-    // includeCommentsは依存関係から除外（記録開始時のみ使用）
+    includeComments,
+    dispatch,
   ]);
 
   // 新しいデータを受信した際に追記
@@ -130,7 +152,7 @@ export function useAutoSave({
     if (
       isDesktop &&
       enabled &&
-      currentFilePath &&
+      fileSettings.autoSavePath &&
       latestRawData &&
       isFileCreated &&
       initialIncludeCommentsRef.current !== null &&
@@ -158,11 +180,24 @@ export function useAutoSave({
               CosmicWatchDataService.formatRawDataForFile(latestRawData);
           }
 
-          await platformService.writeFile(currentFilePath, dataToWrite + "\n", {
-            append: true,
-          });
+          if (fileSettings.autoSavePath) {
+            await platformService.writeFile(
+              fileSettings.autoSavePath,
+              dataToWrite + "\n",
+              {
+                append: true,
+              }
+            );
+          }
         } catch (error) {
-          console.error("Failed to append data:", error);
+          ErrorHandler.fileOperation(
+            "自動保存データの追記に失敗しました",
+            error instanceof Error ? error : new Error(String(error)),
+            {
+              filePath: fileSettings.autoSavePath,
+              dataSize: latestRawData?.length,
+            }
+          );
           resetState();
         }
       };
@@ -173,15 +208,16 @@ export function useAutoSave({
     latestRawData,
     parsedData,
     enabled,
-    currentFilePath,
+    fileSettings.autoSavePath,
     isFileCreated,
     platformService,
-    // includeCommentsは依存関係から除外（記録開始時の設定を使用）
+    includeComments,
+    dispatch,
   ]);
 
   // 状態をリセットする関数
   const resetState = () => {
-    setCurrentFilePath(null);
+    dispatch(setAutoSavePath(null));
     onFileHandleChange(null);
     setIsFileCreated(false);
     initialIncludeCommentsRef.current = null; // コメント設定もリセット
@@ -194,17 +230,20 @@ export function useAutoSave({
     try {
       const selected = await platformService.selectDirectory();
       if (selected) {
-        setSaveDirectory(selected);
+        dispatch(setSaveDirectory(selected));
         resetState();
       }
     } catch (error) {
-      console.error("Failed to select directory:", error);
+      ErrorHandler.platformOperation(
+        "ディレクトリ選択に失敗しました",
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   };
 
   return {
-    saveDirectory,
-    currentFilePath,
+    saveDirectory: fileSettings.saveDirectory,
+    currentFilePath: fileSettings.autoSavePath,
     isFileCreated,
     selectSaveDirectory,
     setEnabled: (value: boolean) => {

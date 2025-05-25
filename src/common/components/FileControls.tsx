@@ -1,4 +1,4 @@
-import { ChangeEvent, useState } from "react";
+import { ChangeEvent, memo } from "react";
 import {
   formatDateForFilename,
   formatDateTimeLocale,
@@ -17,15 +17,22 @@ import { Switch } from "@headlessui/react";
 import { CosmicWatchData } from "../../shared/types";
 import { CosmicWatchDataService } from "../services/CosmicWatchDataService";
 import { PlatformService } from "../services/PlatformService";
+import { ErrorHandler } from "../services/ErrorHandlingService";
+
+// Redux関連のimport
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import {
+  setIncludeComments,
+  setAutoSaveEnabled,
+  setComment,
+  setSuffix,
+} from "../../store/slices/fileSettingsSlice";
+import { selectFileControlsData } from "../../store/selectors";
 
 interface FileControlsProps {
   rawData: string[];
   measurementStartTime: Date | null;
   measurementEndTime: Date | null;
-  additionalComment: string;
-  setAdditionalComment: (comment: string) => void;
-  filenameSuffix: string;
-  setFilenameSuffix: (suffix: string) => void;
   isDesktop: boolean;
   platformService: PlatformService | null;
   setFileHandle: (path: string | null) => void;
@@ -233,141 +240,156 @@ const AutoSaveSection = ({
   </div>
 );
 
-export const FileControls = ({
-  rawData,
-  measurementStartTime,
-  measurementEndTime,
-  additionalComment,
-  setAdditionalComment,
-  filenameSuffix,
-  setFilenameSuffix,
-  isDesktop,
-  platformService,
-  setFileHandle,
-  latestRawData,
-  parsedData,
-}: FileControlsProps) => {
-  const [includeComments, setIncludeComments] = useState(false);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(true);
-
-  const { saveDirectory, currentFilePath, selectSaveDirectory, setEnabled } =
-    useAutoSave({
-      isDesktop,
-      enabled: autoSaveEnabled,
-      measurementStartTime,
-      additionalComment,
-      filenameSuffix,
-      latestRawData,
-      parsedData: parsedData ?? null,
-      onFileHandleChange: setFileHandle,
-      includeComments,
-      platformService,
-    });
-
-  const handleAutoSaveToggle = (isChecked: boolean) => {
-    setAutoSaveEnabled(isChecked);
-    setEnabled(isChecked);
-  };
-
-  const handleDownload = async () => {
-    if (!measurementStartTime || !platformService) return;
-    const endTime = measurementEndTime ?? new Date();
-
-    let content = "";
-
-    if (includeComments) {
-      const comments = [
-        "# CosmicWatch Data",
-        `# Measurement Start: ${formatDateTimeLocale(measurementStartTime)}`,
-        `# Measurement End: ${formatDateTimeLocale(endTime)}`,
-        ...additionalComment
-          .split("\n")
-          .filter((line) => line.trim())
-          .map((line) => `# ${line}`),
-      ].join("\n");
-      content = comments + "\n";
-    }
-
-    const filteredData = rawData.filter(
-      (line) => includeComments || !line.trim().startsWith("#")
+export const FileControls = memo(
+  ({
+    rawData,
+    measurementStartTime,
+    measurementEndTime,
+    isDesktop,
+    platformService,
+    setFileHandle,
+    latestRawData,
+    parsedData,
+  }: FileControlsProps) => {
+    const dispatch = useAppDispatch();
+    const { fileSettings, autoSaveSettings } = useAppSelector(
+      selectFileControlsData
     );
 
-    const processedData = filteredData.map((line) => {
-      if (line.trim().startsWith("#")) {
-        return line;
+    const { saveDirectory, currentFilePath, selectSaveDirectory, setEnabled } =
+      useAutoSave({
+        isDesktop,
+        enabled: autoSaveSettings.enabled,
+        measurementStartTime,
+        additionalComment: fileSettings.comment,
+        filenameSuffix: fileSettings.suffix,
+        latestRawData,
+        parsedData: parsedData ?? null,
+        onFileHandleChange: setFileHandle,
+        includeComments: fileSettings.includeComments,
+        platformService,
+      });
+
+    const handleAutoSaveToggle = (isChecked: boolean) => {
+      dispatch(setAutoSaveEnabled(isChecked));
+      setEnabled(isChecked);
+    };
+
+    const handleDownload = async () => {
+      if (!measurementStartTime || !platformService) return;
+      const endTime = measurementEndTime ?? new Date();
+
+      try {
+        let content = "";
+
+        if (fileSettings.includeComments) {
+          const comments = [
+            "# CosmicWatch Data",
+            `# Measurement Start: ${formatDateTimeLocale(
+              measurementStartTime
+            )}`,
+            `# Measurement End: ${formatDateTimeLocale(endTime)}`,
+            ...fileSettings.comment
+              .split("\n")
+              .filter((line) => line.trim())
+              .map((line) => `# ${line}`),
+          ].join("\n");
+          content = comments + "\n";
+        }
+
+        const filteredData = rawData.filter(
+          (line) => fileSettings.includeComments || !line.trim().startsWith("#")
+        );
+
+        const processedData = filteredData.map((line) => {
+          if (line.trim().startsWith("#")) {
+            return line;
+          }
+
+          const parsedLineData = CosmicWatchDataService.parseRawData(line);
+
+          if (parsedLineData) {
+            return CosmicWatchDataService.formatDataForFile(parsedLineData);
+          } else {
+            return CosmicWatchDataService.formatRawDataForFile(line);
+          }
+        });
+
+        content += processedData.join("\n");
+
+        const startTimestamp = formatDateForFilename(measurementStartTime);
+        const endTimestamp = formatDateForFilename(endTime);
+        const suffix = fileSettings.suffix ? `_${fileSettings.suffix}` : "";
+        const filename = `${startTimestamp}-${endTimestamp}${suffix}.dat`;
+
+        await platformService.saveFile(content, filename);
+      } catch (error) {
+        ErrorHandler.fileOperation(
+          "ファイルの保存に失敗しました",
+          error instanceof Error ? error : new Error(String(error)),
+          {
+            filename: `${formatDateForFilename(
+              measurementStartTime
+            )}-${formatDateForFilename(endTime)}${
+              fileSettings.suffix ? `_${fileSettings.suffix}` : ""
+            }.dat`,
+            dataSize: rawData.length,
+          }
+        );
       }
+    };
 
-      const parsedLineData = CosmicWatchDataService.parseRawData(line);
+    return (
+      <div>
+        <SectionTitle>
+          <div className="flex items-center">
+            <DocumentTextIcon className="h-6 w-6 mr-2 text-gray-600" />
+            ファイル設定
+          </div>
+        </SectionTitle>
 
-      if (parsedLineData) {
-        return CosmicWatchDataService.formatDataForFile(parsedLineData);
-      } else {
-        return CosmicWatchDataService.formatRawDataForFile(line);
-      }
-    });
-
-    content += processedData.join("\n");
-
-    const startTimestamp = formatDateForFilename(measurementStartTime);
-    const endTimestamp = formatDateForFilename(endTime);
-    const suffix = filenameSuffix ? `_${filenameSuffix}` : "";
-    const filename = `${startTimestamp}-${endTimestamp}${suffix}.dat`;
-
-    try {
-      await platformService.saveFile(content, filename);
-    } catch (error) {
-      console.error("Failed to save file:", error);
-    }
-  };
-
-  return (
-    <div>
-      <SectionTitle>
-        <div className="flex items-center">
-          <DocumentTextIcon className="h-6 w-6 mr-2 text-gray-600" />
-          ファイル設定
-        </div>
-      </SectionTitle>
-
-      <div className="space-y-6">
-        <CommentSection
-          includeComments={includeComments}
-          setIncludeComments={setIncludeComments}
-          comment={additionalComment}
-          setComment={setAdditionalComment}
-          isAutoSaving={currentFilePath !== null}
-        />
-
-        <FilenameSection
-          suffix={filenameSuffix}
-          setSuffix={setFilenameSuffix}
-        />
-
-        <div className="pt-4 border-t border-gray-200">
-          <button
-            onClick={handleDownload}
-            disabled={rawData.length === 0 || !measurementStartTime}
-            className="w-full flex items-center justify-center py-2 px-4 border border-transparent rounded-md shadow-[2px_2px_8px_rgba(0,0,0,0.15)] text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
-          >
-            <ArrowDownTrayIcon className="h-5 w-5 mr-1" />
-            データをダウンロード (.dat)
-          </button>
-          <p className="text-xs text-gray-500 mt-1 text-center">
-            現在の全測定データを上記のコメント設定でファイル保存します。
-          </p>
-        </div>
-
-        {isDesktop && (
-          <AutoSaveSection
-            isEnabled={autoSaveEnabled}
-            setIsEnabled={handleAutoSaveToggle}
-            saveDirectory={saveDirectory}
-            currentFilePath={currentFilePath}
-            measurementStartTime={measurementStartTime}
-            onSelectDirectory={selectSaveDirectory}
+        <div className="space-y-6">
+          <CommentSection
+            includeComments={fileSettings.includeComments}
+            setIncludeComments={(value) => dispatch(setIncludeComments(value))}
+            comment={fileSettings.comment}
+            setComment={(value) => dispatch(setComment(value))}
+            isAutoSaving={currentFilePath !== null}
           />
-        )}
+
+          <FilenameSection
+            suffix={fileSettings.suffix}
+            setSuffix={(value) => dispatch(setSuffix(value))}
+          />
+
+          <div className="pt-4 border-t border-gray-200">
+            <button
+              onClick={handleDownload}
+              disabled={rawData.length === 0 || !measurementStartTime}
+              className="w-full flex items-center justify-center py-2 px-4 border border-transparent rounded-md shadow-[2px_2px_8px_rgba(0,0,0,0.15)] text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5 mr-1" />
+              データをダウンロード (.dat)
+            </button>
+            <p className="text-xs text-gray-500 mt-1 text-center">
+              現在の全測定データを上記のコメント設定でファイル保存します。
+            </p>
+          </div>
+
+          {isDesktop && (
+            <AutoSaveSection
+              isEnabled={autoSaveSettings.enabled}
+              setIsEnabled={handleAutoSaveToggle}
+              saveDirectory={saveDirectory}
+              currentFilePath={currentFilePath}
+              measurementStartTime={measurementStartTime}
+              onSelectDirectory={selectSaveDirectory}
+            />
+          )}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  }
+);
+
+FileControls.displayName = "FileControls";
