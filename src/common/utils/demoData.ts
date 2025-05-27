@@ -12,6 +12,13 @@ function randn_bm(mu: number, sigma: number) {
 }
 
 export function generateDemoData(): string {
+  // 20回に1回の頻度でコメント行を生成（実用的な頻度）
+  if (Math.random() < 0.05) {
+    const now = new Date();
+    const timestamp = now.toISOString();
+    return `# Demo comment at ${timestamp} - Event ${eventCounter}`;
+  }
+
   // 1cps相当の到来間隔（平均1秒、指数分布で揺らぎを持たせる）
   const interval = -Math.log(1 - Math.random()); // 平均1.0
   time += Math.round(interval * 1000); // timeはms単位で加算
@@ -28,7 +35,7 @@ export function generateDemoData(): string {
   const deadtime = Math.floor(Math.random() * 100);
   const temp = (Math.random() * 10 + 20).toFixed(2); // 20~30
 
-  return `${eventCounter++}\t${date}\t${time}\t${adc}\t${sipm}\t${deadtime}\t${temp}`;
+  return `${eventCounter++} ${date} ${time} ${adc} ${sipm} ${deadtime} ${temp}`;
 }
 
 // デモデータの内部状態をリセットする関数を追加

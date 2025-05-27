@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { check } from "@tauri-apps/plugin-updater";
-import { checkIsDesktop } from "../utils/platform";
+import { PlatformService } from "../services/PlatformService";
+import { ErrorHandler } from "../services/ErrorHandlingService";
 import {
   ArrowDownTrayIcon,
   CheckCircleIcon,
@@ -19,7 +20,11 @@ interface UpdateState {
   isVisible: boolean;
 }
 
-export const UpdateChecker = () => {
+interface UpdateCheckerProps {
+  platformService: PlatformService | null;
+}
+
+export const UpdateChecker = ({ platformService }: UpdateCheckerProps) => {
   const [isDesktop, setIsDesktop] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>({
     isChecking: false,
@@ -33,8 +38,10 @@ export const UpdateChecker = () => {
   });
 
   useEffect(() => {
-    checkIsDesktop().then(setIsDesktop);
-  }, []);
+    if (platformService) {
+      setIsDesktop(platformService.isDesktop());
+    }
+  }, [platformService]);
 
   const checkForUpdates = async () => {
     if (!isDesktop) return;
@@ -72,16 +79,15 @@ export const UpdateChecker = () => {
         }, 3000);
       }
     } catch (error) {
-      console.error("Update check failed:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "アップデート確認に失敗しました";
+      const appError = ErrorHandler.updateCheck(
+        "アップデート確認に失敗しました",
+        error instanceof Error ? error : new Error(String(error))
+      );
 
       setUpdateState((prev) => ({
         ...prev,
         isChecking: false,
-        error: errorMessage,
+        error: appError.message,
         isVisible: true,
       }));
 
@@ -122,14 +128,15 @@ export const UpdateChecker = () => {
         }));
       }
     } catch (error) {
-      console.error("Update installation failed:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "アップデートに失敗しました";
+      const appError = ErrorHandler.updateCheck(
+        "アップデートのインストールに失敗しました",
+        error instanceof Error ? error : new Error(String(error))
+      );
 
       setUpdateState((prev) => ({
         ...prev,
         isUpdating: false,
-        error: errorMessage,
+        error: appError.message,
       }));
     }
   };
@@ -138,43 +145,14 @@ export const UpdateChecker = () => {
     setUpdateState((prev) => ({ ...prev, isVisible: false }));
   };
 
-  // 自動チェック（アプリ起動時・リロード時）
+  // 自動チェック（アプリ起動時のみ）
   useEffect(() => {
     if (isDesktop) {
-      // アプリ起動・リロード時により早くチェック実行
+      // アプリ起動時のみチェック実行
       const timer = setTimeout(checkForUpdates, 1000);
       return () => clearTimeout(timer);
     }
   }, [isDesktop]);
-
-  // リロード検知とアップデートチェック
-  useEffect(() => {
-    if (!isDesktop) return;
-
-    const handleVisibilityChange = () => {
-      // ページが再表示された時（タブ切り替えやリロード後）
-      if (document.visibilityState === "visible" && !updateState.isChecking) {
-        // 少し遅延してアップデートチェック実行
-        setTimeout(checkForUpdates, 500);
-      }
-    };
-
-    const handleFocus = () => {
-      // ウィンドウがフォーカスされた時（リロード後含む）
-      if (!updateState.isChecking) {
-        setTimeout(checkForUpdates, 500);
-      }
-    };
-
-    // リロード検知のためのイベントリスナー
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [isDesktop, updateState.isChecking]);
 
   if (!isDesktop || !updateState.isVisible) return null;
 

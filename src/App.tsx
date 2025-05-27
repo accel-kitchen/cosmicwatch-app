@@ -1,16 +1,14 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { SectionTitle } from "./common/components/Layout";
 import { SerialConnection } from "./common/components/SerialConnection";
 import { DataTable } from "./common/components/DataTable";
-import { parseCosmicWatchData } from "./common/utils/dataParser";
-import { CosmicWatchData } from "./shared/types";
 import { FileControls } from "./common/components/FileControls";
-import { checkIsDesktop } from "./common/utils/platform";
 import { DataHistograms } from "./common/components/DataHistograms";
 import { generateDemoData, resetDemoDataState } from "./common/utils/demoData";
 import { UpdateChecker } from "./common/components/UpdateChecker";
 import { LayoutSelector } from "./common/components/LayoutSelector";
 import { useResponsiveLayout } from "./common/hooks/useResponsiveLayout";
+import { CosmicWatchDataService } from "./common/services/CosmicWatchDataService";
 import {
   ExclamationTriangleIcon,
   PlayIcon,
@@ -24,171 +22,83 @@ import {
 } from "@heroicons/react/24/outline";
 import { MarkGithubIcon } from "@primer/octicons-react";
 
-// データ関連の状態をグループ化する型
-interface MeasurementData {
-  raw: string[];
-  parsed: CosmicWatchData[];
-  allParsed: CosmicWatchData[];
-  startTime: Date | null;
-  endTime: Date | null;
-}
-
-// ファイル関連の状態をグループ化する型
-interface FileSettings {
-  comment: string;
-  suffix: string;
-  autoSavePath: string | null;
-}
+// Redux関連のimport
+import { useAppDispatch, useAppSelector } from "./store/hooks";
+import { clearData, processSerialData } from "./store/slices/measurementSlice";
+import { setAutoSavePath } from "./store/slices/fileSettingsSlice";
+import {
+  initializePlatformService,
+  setDemoMode,
+} from "./store/slices/appSlice";
+import {
+  selectAppData,
+  selectMeasurementTimes,
+  selectErrorStates,
+} from "./store/selectors";
 
 function App() {
+  // Redux hooks - 統合selectorを使用
+  const dispatch = useAppDispatch();
+  const { measurementData, platformInfo, latestData } =
+    useAppSelector(selectAppData);
+  const { startTime, endTime } = useAppSelector(selectMeasurementTimes);
+  const { initializationError } = useAppSelector(selectErrorStates);
+  const { isDesktop, platformService, isDemoMode, isInitialized } =
+    platformInfo;
+  const { rawData: latestRawData, parsedData: latestParsedData } = latestData;
+
   // レスポンシブレイアウト管理
   const { layout, userPreference, setUserPreference, isAuto } =
     useResponsiveLayout();
 
-  // 測定データの状態管理（グループ化）
-  const [data, setData] = useState<MeasurementData>({
-    raw: [],
-    parsed: [],
-    allParsed: [],
-    startTime: null,
-    endTime: null,
-  });
-
-  // ファイル関連の設定（グループ化）
-  const [fileSettings, setFileSettings] = useState<FileSettings>({
-    comment: "",
-    suffix: "",
-    autoSavePath: null,
-  });
-
-  // プラットフォーム検出
-  const [isDesktop, setIsDesktop] = useState(false);
-
-  // デモモード状態と制御
-  const [isDemoMode, setIsDemoMode] = useState(false);
+  // デモモード制御
   const demoIntervalRef = useRef<number | null>(null);
 
-  // Tauriアプリケーションの判定
+  // プラットフォームサービスを初期化（アプリ全体で共有）
   useEffect(() => {
-    checkIsDesktop().then((desktop) => {
-      setIsDesktop(desktop);
-      console.log(
-        "実行環境:",
-        desktop ? "デスクトップアプリ (Tauri)" : "Webブラウザ"
-      );
-    });
-  }, []);
+    if (!isInitialized && !initializationError) {
+      dispatch(initializePlatformService());
+    }
+  }, [dispatch, isInitialized, initializationError]);
 
-  // データ受信時のハンドラー（修正）
-  const handleDataReceived = useCallback((newData: string) => {
-    setData((prevData) => {
-      const isFirstData = !prevData.startTime;
-
-      // 生データの追加
-      const updatedRaw = [...prevData.raw, newData];
-
-      // 解析データの処理
-      const parsed = parseCosmicWatchData(newData);
-
-      // 全データとテーブル表示用データ（最新100件）を別々に管理
-      const updatedAllParsed = parsed
-        ? [...prevData.allParsed, parsed]
-        : prevData.allParsed;
-
-      const updatedParsed = parsed
-        ? [...prevData.parsed, parsed].slice(-100)
-        : prevData.parsed;
-
-      return {
-        raw: updatedRaw,
-        parsed: updatedParsed,
-        allParsed: updatedAllParsed,
-        startTime: isFirstData ? new Date() : prevData.startTime,
-        endTime: null, // データ受信中は終了時刻をリセット
-      };
-    });
-  }, []);
-
-  // データクリア処理（更新）
-  const handleClearData = useCallback(() => {
-    setData({
-      raw: [],
-      parsed: [],
-      allParsed: [],
-      startTime: null,
-      endTime: null,
-    });
-
-    setFileSettings((prev) => ({
-      ...prev,
-      autoSavePath: null,
-    }));
-  }, []);
-
-  // 接続成功時の処理
-  const handleConnectSuccess = useCallback(() => {
-    console.log("接続成功");
-  }, []);
-
-  // 切断時の処理
-  const handleDisconnect = useCallback(() => {
-    setData((prev) => ({
-      ...prev,
-      endTime: prev.startTime ? new Date() : null,
-    }));
-
-    setFileSettings((prev) => ({
-      ...prev,
-      autoSavePath: null,
-    }));
-  }, []);
-
-  // ファイルコメント更新ハンドラー
-  const handleCommentChange = useCallback((comment: string) => {
-    setFileSettings((prev) => ({ ...prev, comment }));
-  }, []);
-
-  // ファイル名サフィックス更新ハンドラー
-  const handleSuffixChange = useCallback((suffix: string) => {
-    setFileSettings((prev) => ({ ...prev, suffix }));
-  }, []);
-
-  // 自動保存パス更新ハンドラー
-  const handleAutoSavePathChange = useCallback((path: string | null) => {
-    setFileSettings((prev) => ({ ...prev, autoSavePath: path }));
-  }, []);
-
-  // 最新のrawDataを取得（メモ化）
-  const latestRawData = useMemo(() => {
-    return data.raw.length > 0 ? data.raw[data.raw.length - 1] : null;
-  }, [data.raw]);
-
-  // 最新のパース済みデータを取得（メモ化）
-  const latestParsedData = useMemo(() => {
-    return data.parsed.length > 0 ? data.parsed[data.parsed.length - 1] : null;
-  }, [data.parsed]);
+  // 自動保存パス更新ハンドラー（Redux版）
+  const handleAutoSavePathChange = (path: string | null) => {
+    dispatch(setAutoSavePath(path));
+  };
 
   // デモモード開始
   const startDemoMode = () => {
-    handleClearData(); // アプリの状態をクリア
+    // アプリの状態をクリア
+    dispatch(clearData());
+    dispatch(setAutoSavePath(null));
     resetDemoDataState(); // デモデータのカウンターと時間をリセット
-    setIsDemoMode(true);
+    dispatch(setDemoMode(true));
   };
 
   // デモモード終了
   const stopDemoMode = () => {
-    setIsDemoMode(false);
+    dispatch(setDemoMode(false));
     // デモ終了時にもデータをクリアする場合 (任意)
     // handleClearData();
   };
 
-  // デモデータ自動生成
+  // デモデータ自動生成（createAsyncThunk統一版）
   useEffect(() => {
     if (isDemoMode) {
-      demoIntervalRef.current = setInterval(() => {
-        const demoData = generateDemoData();
-        handleDataReceived(demoData);
-      }, 1000) as unknown as number; // 型アサーションを追加
+      demoIntervalRef.current = setInterval(async () => {
+        try {
+          const demoData = generateDemoData();
+          // createAsyncThunkでデータ処理を統一
+          await dispatch(
+            processSerialData({
+              rawData: demoData,
+              parseFunction: CosmicWatchDataService.parseRawData,
+            })
+          ).unwrap();
+        } catch (error) {
+          console.error("デモデータ処理エラー:", error);
+        }
+      }, 1000) as unknown as number;
     } else if (demoIntervalRef.current) {
       clearInterval(demoIntervalRef.current);
       demoIntervalRef.current = null;
@@ -199,10 +109,10 @@ function App() {
         demoIntervalRef.current = null;
       }
     };
-  }, [isDemoMode, handleDataReceived]);
+  }, [isDemoMode, dispatch]);
 
-  // レイアウトに応じたクラス名を生成
-  const getLayoutClasses = () => {
+  // レイアウトに応じたクラス名を生成（メモ化で最適化）
+  const layoutClasses = useMemo(() => {
     switch (layout) {
       case "full-sidebar":
         return {
@@ -220,9 +130,7 @@ function App() {
           mainContent: "flex-1 overflow-y-auto bg-gray-50",
         };
     }
-  };
-
-  const layoutClasses = getLayoutClasses();
+  }, [layout]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
@@ -344,14 +252,11 @@ function App() {
             {/* 1. ファイル設定 */}
             <div className="p-6 bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)]">
               <FileControls
-                rawData={data.raw}
-                measurementStartTime={data.startTime}
-                measurementEndTime={data.endTime}
-                additionalComment={fileSettings.comment}
-                setAdditionalComment={handleCommentChange}
-                filenameSuffix={fileSettings.suffix}
-                setFilenameSuffix={handleSuffixChange}
+                rawData={measurementData.rawData}
+                measurementStartTime={startTime}
+                measurementEndTime={endTime}
                 isDesktop={isDesktop}
+                platformService={platformService}
                 setFileHandle={handleAutoSavePathChange}
                 latestRawData={latestRawData}
                 parsedData={latestParsedData}
@@ -360,13 +265,7 @@ function App() {
 
             {/* 2. CosmicWatch接続 */}
             <div className="p-4 bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)]">
-              <SerialConnection
-                onDataReceived={handleDataReceived}
-                onClearData={handleClearData}
-                onConnectSuccess={handleConnectSuccess}
-                onDisconnect={handleDisconnect}
-                isDemoMode={isDemoMode}
-              />
+              <SerialConnection />
             </div>
           </div>
         </div>
@@ -376,10 +275,7 @@ function App() {
           <div className="p-6 space-y-6">
             {/* 3. データ解析（ヒストグラム） */}
             <div className="bg-white rounded-lg shadow-[2px_2px_10px_rgba(0,0,0,0.1)] overflow-hidden">
-              <DataHistograms
-                data={data.allParsed}
-                startTime={data.startTime}
-              />
+              <DataHistograms />
             </div>
 
             {/* 4. 測定データテーブル */}
@@ -395,8 +291,8 @@ function App() {
                   最新100件のイベントデータ
                 </p>
                 <div className="bg-white overflow-hidden max-h-80 overflow-y-auto rounded-lg">
-                  {data.parsed.length > 0 ? (
-                    <DataTable data={data.parsed} />
+                  {measurementData.parsedData.length > 0 ? (
+                    <DataTable />
                   ) : (
                     <div className="p-8 text-gray-500 text-center flex flex-col items-center justify-center space-y-2">
                       <TableCellsIcon className="h-12 w-12 text-gray-300" />
@@ -422,9 +318,9 @@ function App() {
                 <p className="text-sm text-gray-600 mt-2 mb-4">
                   CosmicWatchから受信した生データ（最新100行）
                 </p>
-                {data.raw.length > 0 ? (
+                {measurementData.rawData.length > 0 ? (
                   <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-auto max-h-80 text-sm font-mono">
-                    {data.raw.slice(-100).join("\n")}
+                    {measurementData.rawData.slice(-100).join("\n")}
                   </pre>
                 ) : (
                   <div className="p-8 text-gray-500 text-center flex flex-col items-center justify-center space-y-2 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
@@ -442,7 +338,7 @@ function App() {
       </div>
 
       {/* アップデートチェッカー（固定位置スナックバー） */}
-      <UpdateChecker />
+      <UpdateChecker platformService={platformService} />
     </div>
   );
 }

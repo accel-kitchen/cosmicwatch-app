@@ -16,21 +16,19 @@ export interface SerialPortConfig {
   portNumber: string;
 }
 
+// Web Serial API準拠の型定義
+export type ParityType = "none" | "even" | "odd";
+
 export interface SerialOptions {
   baudRate: number;
-  dataBits: number;
-  stopBits: number;
-  parity: ParityType;
-  bufferSize: number;
+  dataBits?: 7 | 8; // Web Serial API準拠
+  stopBits?: 1 | 2; // Web Serial API準拠
+  parity?: ParityType; // Web Serial API準拠
+  bufferSize?: number; // Web Serial API準拠
 }
 
-export interface SerialPortState {
-  port: SerialPort | null;
-  reader: ReadableStreamDefaultReader | null;
-  writer: WritableStreamDefaultWriter | null;
-  isConnected: boolean;
-  error: string | null;
-}
+// 注意: SerialPortStateはstore/slices/serialPortSlice.tsで定義されています
+// この型定義は削除されました（Redux管理用の型と重複していたため）
 
 export type SerialDataCallback = (data: string) => void;
 
