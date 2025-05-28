@@ -1,4 +1,4 @@
-# CosmicWatch Recorder
+![image](https://github.com/user-attachments/assets/8260676c-645c-4440-9eb1-778b0b0bce62)# CosmicWatch Recorder
 
 > 宇宙線検出器CosmicWatchのデータ記録・解析アプリケーション
 
@@ -11,7 +11,7 @@ Windowsユーザーのみ、デスクトップアプリ版も利用可能です�
 ### Webアプリ版
 **最も簡単な方法です**
 
-1. **ブラウザでアクセス**: [https://cosmicwatch-app.pages.dev/](https://cosmicwatch-app.pages.dev/)
+1. **ブラウザでアクセス**: [https://accel-kitchen.com/app/cosmicwatch-app/](https://accel-kitchen.com/app/cosmicwatch-app/)
 2. **CosmicWatchを接続**: USBケーブルでPCに接続
 3. **シリアルポートを選択**: アプリ内で接続ボタンをクリック
 4. **測定開始**: データが自動的に表示されます
