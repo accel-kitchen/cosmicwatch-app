@@ -1,4 +1,4 @@
-![image](https://github.com/user-attachments/assets/8260676c-645c-4440-9eb1-778b0b0bce62)# CosmicWatch Recorder
+# CosmicWatch Recorder
 
 > 宇宙線検出器CosmicWatchのデータ記録・解析アプリケーション
 
