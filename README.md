@@ -126,12 +126,6 @@ CosmicWatchは設定により異なるデータ形式を出力します：
 - PC時刻で統一されたタイムスタンプ
 - パース失敗データも生データとして保存
 
-## 🤝 サポート・フィードバック
-
-- **不具合報告**: [GitHub Issues](https://github.com/nagi-hobbies/cosmicwatch-app/issues)
-- **機能要望**: [GitHub Discussions](https://github.com/nagi-hobbies/cosmicwatch-app/discussions)
-- **質問**: [GitHub Discussions Q&A](https://github.com/nagi-hobbies/cosmicwatch-app/discussions/categories/q-a)
-
 ## 📄 ライセンス
 
 保留
