@@ -24,21 +24,21 @@ export const CountRateChart = ({
 
   // 日付文字列をDateオブジェクトに変換するヘルパー関数
   const parseCustomDateString = (dateString: string): Date => {
-    
+
     let isoString = "";
     let date: Date;
-    
+
     // パターン1: "2025-05-25-09-03-31.291" （ミリ秒付き）
     const patternWithMs = /^(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-(\d{2})\.(\d{3})$/;
     const matchWithMs = dateString.match(patternWithMs);
-    
+
     if (matchWithMs) {
       isoString = dateString.replace(patternWithMs, "$1-$2-$3T$4:$5:$6.$7Z");
     } else {
       // パターン2: "2025-05-25-09-03-31" （ミリ秒なし）
       const patternWithoutMs = /^(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-(\d{2})$/;
       const matchWithoutMs = dateString.match(patternWithoutMs);
-      
+
       if (matchWithoutMs) {
         isoString = dateString.replace(patternWithoutMs, "$1-$2-$3T$4:$5:$6.000Z");
       } else {
@@ -46,28 +46,27 @@ export const CountRateChart = ({
         isoString = dateString;
       }
     }
-    
-    
+
+
     date = new Date(isoString);
-    
+
     if (isNaN(date.getTime())) {
-      
+
       // フォールバック: 現在時刻を使用
       date = new Date();
     }
-    
+
     return date;
   };
 
   // カウントレートデータを計算
   const countRateData = useMemo(() => {
-    
+
     if (!startTime || data.length === 0) {
       return { xData: [], yData: [], stats: null };
     }
 
     const currentTime = Date.now();
-    const totalElapsedMs = currentTime - startTime.getTime();
 
     // データを時刻順にソート（念のため）し、有効な日付データのみを抽出
     const sortedData = data
@@ -96,9 +95,12 @@ export const CountRateChart = ({
     // 実際のデータ範囲を計算
     const firstEventTime = sortedData[0].parsedTime;
     const lastEventTime = sortedData[sortedData.length - 1].parsedTime;
+
+    // データが切り捨てられている場合（firstEventTime > startTime）を考慮
+    // 常に「現在保持している一番古いデータ」から「現在時刻」までの範囲を表示
     const dataRangeMs = Math.max(
       lastEventTime - firstEventTime,
-      totalElapsedMs
+      currentTime - firstEventTime
     );
     const windowSizeMs = dataRangeMs / dataPoints;
 
@@ -175,19 +177,19 @@ export const CountRateChart = ({
     const stats =
       validRates.length > 0
         ? {
-            count: validRates.length,
-            mean: (
-              validRates.reduce((a, b) => a + b, 0) / validRates.length
-            ).toFixed(4),
-            min: Math.min(...validRates).toFixed(4),
-            max: Math.max(...validRates).toFixed(4),
-            totalEvents: data.length,
-            validEvents: sortedData.length, // パース成功したイベント数
-            avgRate:
-              sortedData.length > 0 && dataRangeMs > 0
-                ? (sortedData.length / (dataRangeMs / 1000)).toFixed(4)
-                : "0",
-          }
+          count: validRates.length,
+          mean: (
+            validRates.reduce((a, b) => a + b, 0) / validRates.length
+          ).toFixed(4),
+          min: Math.min(...validRates).toFixed(4),
+          max: Math.max(...validRates).toFixed(4),
+          totalEvents: data.length,
+          validEvents: sortedData.length, // パース成功したイベント数
+          avgRate:
+            sortedData.length > 0 && dataRangeMs > 0
+              ? (sortedData.length / (dataRangeMs / 1000)).toFixed(4)
+              : "0",
+        }
         : null;
 
     return { xData, yData, stats, tickFormat, xAxisTitle: title };
@@ -237,8 +239,8 @@ export const CountRateChart = ({
       tickformat: countRateData.tickFormat || "%H:%M:%S",
       tickangle:
         countRateData.tickFormat === "%m/%d %H:%M" ||
-        countRateData.tickFormat === "%m/%d" ||
-        countRateData.tickFormat === "%Y/%m"
+          countRateData.tickFormat === "%m/%d" ||
+          countRateData.tickFormat === "%Y/%m"
           ? -45
           : 0,
       gridcolor: "#e2e8f0",
@@ -323,11 +325,10 @@ export const CountRateChart = ({
       {countRateData.stats && (
         <>
           <div
-            className={`grid gap-2 text-sm ${
-              graphLayout === "horizontal"
-                ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
-                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
-            }`}
+            className={`grid gap-2 text-sm ${graphLayout === "horizontal"
+              ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+              : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+              }`}
           >
             <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex flex-col items-center justify-center text-center">
               <div className="font-semibold text-blue-800 text-xs">

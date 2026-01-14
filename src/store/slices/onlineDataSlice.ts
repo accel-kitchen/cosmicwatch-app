@@ -321,7 +321,7 @@ const onlineDataSlice = createSlice({
       state.lastError = connectionStatus.lastError;
       state.retryCount = connectionStatus.retryCount;
 
-      state.queuedData = state.queuedData.slice(results.success + results.failed);
+      state.queuedData = state.queuedData.slice(results.success);
     });
 
     builder.addCase(uploadDataBatch.rejected, (state, action) => {

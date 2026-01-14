@@ -41,6 +41,9 @@ export class OnlineDataService {
   private retryCount: number = 0;
   private readonly maxRetries: number = 3;
   private readonly baseRetryDelay: number = 1000;
+  private readonly forbiddenRetryDelay: number = 30000;
+  private reloginAttempts: number = 0;
+  private readonly maxReloginAttempts: number = 3;
 
   constructor(config: OnlineServerConfig) {
     this.config = config;
@@ -181,8 +184,8 @@ export class OnlineDataService {
     }
   }
 
-  async uploadData(data: CosmicWatchData): Promise<boolean> {
-    
+  async uploadData(data: CosmicWatchData, isReloginAttempt: boolean = false): Promise<boolean> {
+
     if (!this.authToken) {
       try {
         const success = await this.login();
@@ -195,9 +198,9 @@ export class OnlineDataService {
     }
 
     try {
-      
+
       const timestampSource = data.pcTimestamp || data.date || new Date().toISOString();
-      
+
       const uploadData = {
         event: data.event,
         timestamp: this.formatTimestampForServer(timestampSource),
@@ -206,7 +209,8 @@ export class OnlineDataService {
         deadtime: data.deadtime,
         temp: data.temp || 25.0,
       };
-      
+
+      console.log(`📤 [OnlineDataService] Uploading data for event ${data.event}`);
 
       const response = await fetch(
         this.getApiUrl(`/upload-data/${this.config.userId}`),
@@ -223,40 +227,100 @@ export class OnlineDataService {
 
       if (!response.ok) {
         if (response.status === 401) {
-          return await this.handleTokenExpired() && await this.uploadData(data);
+          console.warn(`🔑 [OnlineDataService] Token expired for event ${data.event}, refreshing...`);
+          return (await this.handleTokenExpired()) && (await this.uploadData(data, true));
         }
-        throw new Error(`Upload failed: ${response.status}`);
+
+        if (response.status === 403) {
+          console.error(`🚫 [OnlineDataService] Upload forbidden (403) for event ${data.event}`);
+
+          if (!isReloginAttempt && this.reloginAttempts < this.maxReloginAttempts) {
+            console.log(`🔄 [OnlineDataService] Attempting relogin (${this.reloginAttempts + 1}/${this.maxReloginAttempts})`);
+
+            this.authToken = null;
+            this.isConnected = false;
+            this.reloginAttempts++;
+
+            await this.waitForForbiddenCooldown();
+
+            const relogged = await this.login();
+            if (relogged) {
+              return await this.uploadData(data, true);
+            }
+          }
+
+          this.lastError = `Upload forbidden: ${response.status}. Max relogin attempts exceeded.`;
+          console.error(`❌ [OnlineDataService] ${this.lastError}`);
+          return false;
+        }
+
+        const errorMessage = `Upload failed: ${response.status}`;
+        console.error(`❌ [OnlineDataService] ${errorMessage} for event ${data.event}`);
+        throw new Error(errorMessage);
       }
 
       this.retryCount = 0;
+      this.reloginAttempts = 0;
       this.lastError = null;
+      console.log(`✅ [OnlineDataService] Successfully uploaded event ${data.event}`);
       return true;
     } catch (error) {
-      this.lastError = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.lastError = errorMessage;
+      console.error(`❌ [OnlineDataService] Upload error for event ${data.event}:`, errorMessage);
       return false;
     }
   }
 
   async uploadDataBatch(dataArray: CosmicWatchData[]): Promise<{ success: number; failed: number }> {
     const results = { success: 0, failed: 0 };
+    let consecutiveFailures = 0;
+    const maxConsecutiveFailures = 5;
 
-    for (const data of dataArray) {
-      const success = await this.uploadData(data);
-      if (success) {
-        results.success++;
-      } else {
-        results.failed++;
-        
-        if (this.retryCount >= this.maxRetries) {
-          console.warn(`Max retries exceeded for batch upload. Stopping batch.`);
+    console.log(`📦 [OnlineDataService] Starting batch upload of ${dataArray.length} items`);
+    this.retryCount = 0;
+
+    for (let i = 0; i < dataArray.length; i++) {
+      const data = dataArray[i];
+      let attempt = 0;
+
+      while (attempt < this.maxRetries) {
+        const success = await this.uploadData(data);
+
+        if (success) {
+          results.success++;
+          consecutiveFailures = 0;
+          this.retryCount = 0;
           break;
         }
 
+        attempt++;
+        this.retryCount = attempt;
+        consecutiveFailures++;
+
+        if (attempt >= this.maxRetries) {
+          results.failed++;
+          console.warn(`⚠️  [OnlineDataService] Max retries exceeded for event ${data.event} (${i + 1}/${dataArray.length})`);
+          break;
+        }
+
+        console.log(`🔄 [OnlineDataService] Retrying upload for event ${data.event} (attempt ${attempt + 1}/${this.maxRetries})`);
         await this.exponentialBackoff();
-        this.retryCount++;
+      }
+
+      if (consecutiveFailures >= maxConsecutiveFailures) {
+        console.error(`❌ [OnlineDataService] Too many consecutive failures (${consecutiveFailures}). Stopping batch upload.`);
+        console.error(`📊 [OnlineDataService] Batch results: ${results.success} succeeded, ${results.failed} failed, ${dataArray.length - i - 1} skipped`);
+        results.failed += dataArray.length - i - 1;
+        break;
+      }
+
+      if (i % 50 === 0 && i > 0) {
+        console.log(`📊 [OnlineDataService] Batch progress: ${i}/${dataArray.length} processed (${results.success} success, ${results.failed} failed)`);
       }
     }
 
+    console.log(`📊 [OnlineDataService] Batch upload completed: ${results.success} succeeded, ${results.failed} failed`);
     return results;
   }
 
@@ -282,6 +346,9 @@ export class OnlineDataService {
 
       const refreshData = await response.json();
       this.authToken = refreshData.token;
+      this.retryCount = 0;
+      this.isConnected = true;
+      this.lastError = null;
       console.log("✓ Token refreshed successfully");
       return true;
     } catch (error) {
@@ -315,7 +382,13 @@ export class OnlineDataService {
   private async exponentialBackoff(): Promise<void> {
     const delay = this.baseRetryDelay * Math.pow(2, this.retryCount);
     const jitter = Math.random() * 1000;
+    console.log(`⏳ [OnlineDataService] Waiting ${Math.round(delay + jitter)}ms before retry`);
     await new Promise(resolve => setTimeout(resolve, delay + jitter));
+  }
+
+  private async waitForForbiddenCooldown(): Promise<void> {
+    console.log(`⏳ [OnlineDataService] Waiting ${this.forbiddenRetryDelay}ms for 403 cooldown`);
+    await new Promise(resolve => setTimeout(resolve, this.forbiddenRetryDelay));
   }
 
   async disconnect(): Promise<void> {

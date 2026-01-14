@@ -13,10 +13,10 @@ export const initializeIndexedDB = createAsyncThunk(
       if (!IndexedDBDataService.isSupported()) {
         throw new Error("IndexedDB is not supported in this browser");
       }
-      
+
       indexedDBService = new IndexedDBDataService();
       await indexedDBService.initialize();
-      
+
       return {
         isSupported: true,
         isInitialized: true
@@ -37,10 +37,10 @@ export const createMeasurementSession = createAsyncThunk(
       if (!indexedDBService) {
         throw new Error("IndexedDB service is not initialized");
       }
-      
+
       const sessionId = await indexedDBService.createSession(comment);
       const session = await indexedDBService.getSession(sessionId);
-      
+
       return { sessionId, session };
     } catch (error) {
       return rejectWithValue(
@@ -58,10 +58,10 @@ export const endMeasurementSession = createAsyncThunk(
       if (!indexedDBService) {
         throw new Error("IndexedDB service is not initialized");
       }
-      
+
       await indexedDBService.endSession(sessionId);
       const session = await indexedDBService.getSession(sessionId);
-      
+
       return { sessionId, session };
     } catch (error) {
       return rejectWithValue(
@@ -82,9 +82,9 @@ export const persistDataToIndexedDB = createAsyncThunk(
       if (!indexedDBService) {
         throw new Error("IndexedDB service is not initialized");
       }
-      
+
       await indexedDBService.storeData(sessionId, data);
-      
+
       return {
         sessionId,
         storedCount: data.length
@@ -101,14 +101,14 @@ export const persistDataToIndexedDB = createAsyncThunk(
 export const loadDataFromIndexedDB = createAsyncThunk(
   "measurement/loadData",
   async (
-    { 
-      sessionId, 
-      limit = 1000, 
-      offset = 0 
-    }: { 
-      sessionId?: string; 
-      limit?: number; 
-      offset?: number; 
+    {
+      sessionId,
+      limit = 1000,
+      offset = 0
+    }: {
+      sessionId?: string;
+      limit?: number;
+      offset?: number;
     },
     { rejectWithValue }
   ) => {
@@ -116,12 +116,12 @@ export const loadDataFromIndexedDB = createAsyncThunk(
       if (!indexedDBService) {
         throw new Error("IndexedDB service is not initialized");
       }
-      
+
       const [data, totalCount] = await Promise.all([
         indexedDBService.getData({ sessionId, limit, offset, orderBy: 'event', orderDirection: 'desc' }),
         indexedDBService.getDataCount(sessionId)
       ]);
-      
+
       return {
         data: data.map(item => ({
           event: item.event,
@@ -154,7 +154,7 @@ export const loadSessions = createAsyncThunk(
       if (!indexedDBService) {
         throw new Error("IndexedDB service is not initialized");
       }
-      
+
       const sessions = await indexedDBService.getAllSessions();
       return sessions;
     } catch (error) {
@@ -177,7 +177,7 @@ export const processSerialData = createAsyncThunk(
   ) => {
     try {
       const { rawData, parseFunction } = params;
-      
+
       const parsedData = parseFunction(rawData);
 
       const result = {
@@ -185,7 +185,7 @@ export const processSerialData = createAsyncThunk(
         parsedData,
         timestamp: new Date().toISOString(),
       };
-      
+
       return result;
     } catch (error) {
       return rejectWithValue(
@@ -222,7 +222,7 @@ export const processServerData = createAsyncThunk(
   ) => {
     try {
       const { rawData, parseFunction } = params;
-      
+
       const parsedData = parseFunction(rawData);
 
       const result = {
@@ -230,7 +230,7 @@ export const processServerData = createAsyncThunk(
         parsedData,
         timestamp: new Date().toISOString(),
       };
-      
+
       return result;
     } catch (error) {
       return rejectWithValue(
@@ -272,7 +272,7 @@ export interface MeasurementState {
   // サーバー版モード（メモリ効率化）
   isServerMode: boolean;
   maxMemoryItems: number; // メモリに保持する最大アイテム数
-  
+
   // IndexedDB関連
   indexedDB: {
     isSupported: boolean;
@@ -280,17 +280,17 @@ export interface MeasurementState {
     isEnabled: boolean;
     lastError: string | null;
   };
-  
+
   // 測定セッション管理
   currentSession: MeasurementSession | null;
   sessions: MeasurementSession[];
-  
+
   // データストレージモード
   storageMode: DataStorageMode;
-  
+
   // データビュー（仮想化対応）
   dataView: MeasurementDataView;
-  
+
   // バッチ処理
   pendingBatch: CosmicWatchData[];
   batchSize: number;
@@ -311,8 +311,9 @@ const initialState: MeasurementState = {
     lastCalculatedAt: 0,
   },
   isServerMode: false,
-  maxMemoryItems: 100, // 最大100件のデータをメモリに保持
-  
+  // isServerMode: false, // removed duplicate
+  maxMemoryItems: 0, // 0 = 無制限 (以前は1000)
+
   // IndexedDB関連
   indexedDB: {
     isSupported: IndexedDBDataService.isSupported(),
@@ -320,18 +321,18 @@ const initialState: MeasurementState = {
     isEnabled: false,
     lastError: null,
   },
-  
+
   // 測定セッション管理
   currentSession: null,
   sessions: [],
-  
+
   // データストレージモード
   storageMode: {
     useIndexedDB: false,
-    memoryLimit: 1000,
+    memoryLimit: 0,
     persistenceEnabled: false,
   },
-  
+
   // データビュー（仮想化対応）
   dataView: {
     data: [],
@@ -339,7 +340,7 @@ const initialState: MeasurementState = {
     hasMore: false,
     isLoading: false,
   },
-  
+
   // バッチ処理
   pendingBatch: [],
   batchSize: 50,
@@ -395,7 +396,11 @@ const measurementSlice = createSlice({
     // メモリ制限の設定
     setMaxMemoryItems: (state, action: PayloadAction<number>) => {
       state.maxMemoryItems = action.payload;
-      
+      state.storageMode.memoryLimit = action.payload;
+
+      // 0は無制限なので何もしない
+      if (state.maxMemoryItems === 0) return;
+
       // 既存データが制限を超えている場合は削除
       if (state.rawData.length > state.maxMemoryItems) {
         state.rawData = state.rawData.slice(-state.maxMemoryItems);
@@ -448,7 +453,7 @@ const measurementSlice = createSlice({
       state.indexedDB.isInitialized = action.payload.isInitialized;
       state.indexedDB.isSupported = action.payload.isSupported;
       state.indexedDB.lastError = null;
-      
+
       // 自動的にIndexedDBを有効化
       if (action.payload.isInitialized) {
         state.indexedDB.isEnabled = true;
@@ -542,14 +547,17 @@ const measurementSlice = createSlice({
       }
 
       // メモリ使用量を制限（IndexedDB有効時も適用）
-      const memoryLimit = state.storageMode.useIndexedDB ? 
+      const memoryLimit = state.storageMode.useIndexedDB ?
         state.storageMode.memoryLimit : state.maxMemoryItems;
-      
-      if (state.rawData.length > memoryLimit) {
-        state.rawData = state.rawData.slice(-memoryLimit);
-      }
-      if (state.parsedData.length > memoryLimit) {
-        state.parsedData = state.parsedData.slice(-memoryLimit);
+
+      // memoryLimitが0の場合は無制限
+      if (memoryLimit > 0) {
+        if (state.rawData.length > memoryLimit) {
+          state.rawData = state.rawData.slice(-memoryLimit);
+        }
+        if (state.parsedData.length > memoryLimit) {
+          state.parsedData = state.parsedData.slice(-memoryLimit);
+        }
       }
 
       // 開始時刻を設定（初回データ受信時）
@@ -584,7 +592,7 @@ const measurementSlice = createSlice({
       }
 
       // サーバーモードの場合、メモリ使用量を制限
-      if (state.isServerMode) {
+      if (state.isServerMode && state.maxMemoryItems > 0) {
         if (state.rawData.length > state.maxMemoryItems) {
           state.rawData = state.rawData.slice(-state.maxMemoryItems);
         }
@@ -615,10 +623,10 @@ const measurementSlice = createSlice({
   },
 });
 
-export const { 
-  clearData, 
-  recalculateStatistics, 
-  setServerMode, 
+export const {
+  clearData,
+  recalculateStatistics,
+  setServerMode,
   setMaxMemoryItems,
   setIndexedDBEnabled,
   setStorageMode,

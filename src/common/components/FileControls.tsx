@@ -76,11 +76,10 @@ const CommentSection = ({
     <div>
       <textarea
         id="additionalComment"
-        className={`block w-full px-3 py-2 border ${
-          includeComments
-            ? "border-gray-300 bg-white"
-            : "border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed"
-        } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out`}
+        className={`block w-full px-3 py-2 border ${includeComments
+          ? "border-gray-300 bg-white"
+          : "border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed"
+          } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out`}
         rows={3}
         value={comment}
         onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
@@ -173,9 +172,8 @@ const AutoSaveSection = ({
     <div>
       <label
         htmlFor="saveDirectory"
-        className={`block text-sm mb-1 ${
-          isEnabled ? "text-gray-600" : "text-gray-400"
-        }`}
+        className={`block text-sm mb-1 ${isEnabled ? "text-gray-600" : "text-gray-400"
+          }`}
       >
         自動保存先フォルダ
       </label>
@@ -185,19 +183,17 @@ const AutoSaveSection = ({
           type="text"
           value={saveDirectory}
           readOnly
-          className={`flex-grow block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm ${
-            isEnabled
-              ? "bg-gray-100"
-              : "bg-gray-200 text-gray-500 cursor-not-allowed"
-          }`}
+          className={`flex-grow block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm sm:text-sm ${isEnabled
+            ? "bg-gray-100"
+            : "bg-gray-200 text-gray-500 cursor-not-allowed"
+            }`}
           placeholder={isEnabled ? "フォルダを選択..." : "自動保存が無効です"}
           disabled={!isEnabled}
         />
         <button
           onClick={onSelectDirectory}
-          className={`flex-shrink-0 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out ${
-            isEnabled ? "text-gray-700" : "text-gray-400 cursor-not-allowed"
-          }`}
+          className={`flex-shrink-0 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out ${isEnabled ? "text-gray-700" : "text-gray-400 cursor-not-allowed"
+            }`}
           disabled={!isEnabled}
         >
           <div className="flex items-center">
@@ -258,7 +254,7 @@ export const FileControls = memo(
 
     // プラットフォームに応じてフックを選択（React Hooks規則に従い両方を常に呼び出す）
     const isServerPlatform = platformService instanceof ServerPlatformService;
-    
+
     const serverAutoSaveResult = useServerAutoSave({
       enabled: false, // ServerFileDataService完全無効化
       measurementStartTime: null,
@@ -266,7 +262,7 @@ export const FileControls = memo(
       filenameSuffix: "",
       latestRawData: null,
       parsedData: null,
-      onFileHandleChange: () => {},
+      onFileHandleChange: () => { },
       includeComments: false,
       platformService: null,
     });
@@ -279,7 +275,7 @@ export const FileControls = memo(
       filenameSuffix: !isServerPlatform ? fileSettings.suffix : "",
       latestRawData: !isServerPlatform ? latestRawData : null,
       parsedData: !isServerPlatform ? (parsedData ?? null) : null,
-      onFileHandleChange: !isServerPlatform ? setFileHandle : () => {},
+      onFileHandleChange: !isServerPlatform ? setFileHandle : () => { },
       includeComments: !isServerPlatform ? fileSettings.includeComments : false,
       platformService: !isServerPlatform ? platformService : null,
     });
@@ -359,9 +355,8 @@ export const FileControls = memo(
           {
             filename: `${formatDateForFilename(
               measurementStartTime
-            )}-${formatDateForFilename(endTime)}${
-              fileSettings.suffix ? `_${fileSettings.suffix}` : ""
-            }.dat`,
+            )}-${formatDateForFilename(endTime)}${fileSettings.suffix ? `_${fileSettings.suffix}` : ""
+              }.dat`,
             dataSize: rawData.length,
           }
         );

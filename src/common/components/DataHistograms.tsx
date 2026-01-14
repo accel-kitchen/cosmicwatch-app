@@ -14,23 +14,28 @@ import {
   selectDataHistogramsData,
   selectMeasurementDuration,
   selectIsRecording,
+  selectStorageMode,
 } from "../../store/selectors";
+import { useAppDispatch } from "../../store/hooks";
+import { setMaxMemoryItems, setStorageMode } from "../../store/slices/measurementSlice";
 
 type GraphLayoutType = "auto" | "vertical" | "horizontal";
 
 export const DataHistograms = () => {
   // Redux storeからデータを取得 - 統合selectorを使用
   const { parsedData: data, measurementTimes } = useAppSelector(selectDataHistogramsData);
-  
+
   const { startTime } = measurementTimes;
   const measurementDuration = useAppSelector(selectMeasurementDuration);
   const isRecording = useAppSelector(selectIsRecording);
+  const storageMode = useAppSelector(selectStorageMode);
+  const dispatch = useAppDispatch();
 
   const [samples, setSamples] = useState<CosmicWatchData[]>([]);
   const lastRef = useRef<number>(Date.now());
   const timerRef = useRef<number | null>(null);
   const [updateInterval, setUpdateInterval] = useState<number>(0); // 秒単位（0=常時）
-  
+
   // プラットフォームサービス（未使用のため削除）
 
   // ヒストグラム/チャート設定の状態
@@ -126,7 +131,7 @@ export const DataHistograms = () => {
 
   // データ更新処理（Reduxデータを直接使用）
   useEffect(() => {
-    
+
     if (timerRef.current) clearTimeout(timerRef.current);
 
     // 常時更新モード（updateInterval = 0）の場合は即座に更新
@@ -143,12 +148,12 @@ export const DataHistograms = () => {
       setSamples(data || []);
       lastRef.current = now;
     }
-    
+
     timerRef.current = window.setTimeout(() => {
       setSamples(data || []);
       lastRef.current = Date.now();
     }, intervalMs);
-    
+
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
@@ -264,6 +269,48 @@ export const DataHistograms = () => {
             </div>
           </div>
         </SectionTitle>
+      </div>
+
+      {/* メモリ保持数設定 */}
+      <div className="px-4 pb-2">
+        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium text-blue-800">
+              データ保持数: {storageMode.memoryLimit.toLocaleString()}件
+            </span>
+          </div>
+          <div className="flex items-center space-x-4 flex-1 max-w-md ml-4">
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="1"
+              value={[100, 1000, 10000, 100000, 1000000].indexOf(storageMode.memoryLimit) !== -1
+                ? [100, 1000, 10000, 100000, 1000000].indexOf(storageMode.memoryLimit)
+                : 1 // Default to 1000 if not in list
+              }
+              onChange={(e) => {
+                const values = [100, 1000, 10000, 100000, 1000000];
+                const index = Number(e.target.value);
+                const newValue = values[index];
+
+                dispatch(setMaxMemoryItems(newValue));
+                dispatch(setStorageMode({
+                  ...storageMode,
+                  memoryLimit: newValue
+                }));
+              }}
+              className="w-full h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer slider-thumb:bg-blue-600"
+            />
+            <div className="text-xs text-blue-600 w-20 text-right">
+              {storageMode.memoryLimit >= 1000000
+                ? "100万"
+                : storageMode.memoryLimit >= 10000
+                  ? `${storageMode.memoryLimit / 10000}万`
+                  : storageMode.memoryLimit.toLocaleString()}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ヒストグラム表示エリア - レスポンシブグリッド */}
